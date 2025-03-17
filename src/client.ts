@@ -25,11 +25,8 @@ export class FirestoreClient {
     // 必須パラメータのチェック
     const requiredParams: Array<keyof FirestoreConfig> = [
       "projectId",
-      "privateKeyId",
       "privateKey",
       "clientEmail",
-      "clientId",
-      "clientCertUrl",
     ];
 
     const missingParams = requiredParams.filter(param => !this.config[param]);

@@ -25,7 +25,6 @@ export async function createJWT(config: FirestoreConfig): Promise<string> {
     const token = await new jose.SignJWT(payload)
       .setProtectedHeader({
         alg: "RS256",
-        kid: config.privateKeyId,
         typ: "JWT",
       })
       .sign(privateKey);

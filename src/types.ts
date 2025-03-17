@@ -3,11 +3,8 @@
  */
 export interface FirestoreConfig {
   projectId: string;
-  privateKeyId: string;
   privateKey: string;
   clientEmail: string;
-  clientId: string;
-  clientCertUrl: string;
 }
 
 /**
