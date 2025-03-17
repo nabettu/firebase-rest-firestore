@@ -7,16 +7,6 @@ import {
 } from "./utils/converter";
 import { getFirestoreBasePath } from "./utils/path";
 
-// デフォルト設定（環境変数から取得）
-const defaultConfig: FirestoreConfig = {
-  projectId: process.env.FIREBASE_PROJECT_ID || "",
-  privateKeyId: process.env.FIREBASE_PRIVATE_KEY_ID || "",
-  privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n") || "",
-  clientEmail: process.env.FIREBASE_CLIENT_EMAIL || "",
-  clientId: process.env.FIREBASE_CLIENT_ID || "",
-  clientCertUrl: process.env.FIREBASE_CLIENT_CERT_URL || "",
-};
-
 /**
  * Firestoreクライアントクラス
  */
@@ -27,10 +17,10 @@ export class FirestoreClient {
 
   /**
    * コンストラクタ
-   * @param config Firestore設定オブジェクト（省略時は環境変数から取得）
+   * @param config Firestore設定オブジェクト
    */
-  constructor(config?: Partial<FirestoreConfig>) {
-    this.config = { ...defaultConfig, ...config };
+  constructor(config: FirestoreConfig) {
+    this.config = config;
 
     // 必須パラメータのチェック
     const requiredParams: Array<keyof FirestoreConfig> = [
@@ -44,8 +34,8 @@ export class FirestoreClient {
 
     const missingParams = requiredParams.filter(param => !this.config[param]);
     if (missingParams.length > 0) {
-      console.warn(
-        `警告: 次のFirestore設定パラメータが不足しています: ${missingParams.join(
+      throw new Error(
+        `必須のFirestore設定パラメータが不足しています: ${missingParams.join(
           ", "
         )}`
       );
@@ -272,6 +262,6 @@ export class FirestoreClient {
  * @param config Firestore設定オブジェクト
  * @returns FirestoreClientインスタンス
  */
-export function createFirestoreClient(config: Partial<FirestoreConfig> = {}) {
+export function createFirestoreClient(config: FirestoreConfig) {
   return new FirestoreClient(config);
 }

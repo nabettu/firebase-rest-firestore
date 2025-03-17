@@ -9,7 +9,7 @@ Firebase Firestore REST API client for Edge runtime environments like Cloudflare
 - TypeScript support
 - Token caching for better performance
 - Simple and intuitive API
-- Configurable via environment variables or direct configuration
+- Explicit configuration without hidden environment variable dependencies
 
 ## Installation
 
@@ -19,23 +19,20 @@ npm install firebase-rest-firestore
 
 ## Usage
 
-### Setup environment variables
-
-You can configure the client using environment variables:
-
-```
-FIREBASE_PROJECT_ID=your-project-id
-FIREBASE_PRIVATE_KEY_ID=your-private-key-id
-FIREBASE_PRIVATE_KEY=your-private-key
-FIREBASE_CLIENT_EMAIL=your-client-email
-FIREBASE_CLIENT_ID=your-client-id
-FIREBASE_CLIENT_CERT_URL=your-client-cert-url
-```
-
-### Basic usage with environment variables
+### Basic usage with explicit configuration
 
 ```typescript
-import { firestore } from "firebase-rest-firestore";
+import { createFirestoreClient } from "firebase-rest-firestore";
+
+// Create a client with your configuration
+const firestore = createFirestoreClient({
+  projectId: "your-project-id",
+  privateKeyId: "your-private-key-id",
+  privateKey: "your-private-key",
+  clientEmail: "your-client-email",
+  clientId: "your-client-id",
+  clientCertUrl: "your-client-cert-url",
+});
 
 // Create a document
 const game = await firestore.create("games", {
@@ -69,22 +66,27 @@ console.log("Games with score > 50:", userGames);
 await firestore.delete("games", game.id);
 ```
 
-### Usage with direct configuration
+### Using environment variables
 
-You can also configure the client directly without environment variables:
+If you prefer to use environment variables, you can use the provided helper function:
 
 ```typescript
-import { createFirestoreClient } from "firebase-rest-firestore";
+import {
+  createFirestoreClient,
+  loadConfigFromEnv,
+} from "firebase-rest-firestore";
 
-// Create a custom client with your configuration
-const firestore = createFirestoreClient({
-  projectId: "your-project-id",
-  privateKeyId: "your-private-key-id",
-  privateKey: "your-private-key",
-  clientEmail: "your-client-email",
-  clientId: "your-client-id",
-  clientCertUrl: "your-client-cert-url",
-});
+// First set your environment variables:
+// FIREBASE_PROJECT_ID=your-project-id
+// FIREBASE_PRIVATE_KEY_ID=your-private-key-id
+// FIREBASE_PRIVATE_KEY=your-private-key
+// FIREBASE_CLIENT_EMAIL=your-client-email
+// FIREBASE_CLIENT_ID=your-client-id
+// FIREBASE_CLIENT_CERT_URL=your-client-cert-url
+
+// Then load config from environment variables
+const config = loadConfigFromEnv();
+const firestore = createFirestoreClient(config);
 
 // Use the client as usual
 const game = await firestore.create("games", {
@@ -122,6 +124,10 @@ Queries documents in a collection with filtering, ordering, and pagination.
 ### createFirestoreClient(config)
 
 Creates a new FirestoreClient instance with the provided configuration.
+
+### loadConfigFromEnv()
+
+Helper function to load configuration from environment variables.
 
 ## License
 
