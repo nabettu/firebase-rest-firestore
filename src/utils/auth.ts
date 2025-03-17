@@ -31,7 +31,7 @@ export async function createJWT(config: FirestoreConfig): Promise<string> {
 
     return token;
   } catch (error) {
-    console.error("JWT作成エラー:", error);
+    console.error("Error creating JWT:", error);
     throw error;
   }
 }

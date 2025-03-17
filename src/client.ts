@@ -32,7 +32,7 @@ export class FirestoreClient {
     const missingParams = requiredParams.filter(param => !this.config[param]);
     if (missingParams.length > 0) {
       throw new Error(
-        `必須のFirestore設定パラメータが不足しています: ${missingParams.join(
+        `Missing required Firestore configuration parameters: ${missingParams.join(
           ", "
         )}`
       );

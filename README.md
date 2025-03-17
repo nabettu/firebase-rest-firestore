@@ -27,11 +27,8 @@ import { createFirestoreClient } from "firebase-rest-firestore";
 // Create a client with your configuration
 const firestore = createFirestoreClient({
   projectId: "your-project-id",
-  privateKeyId: "your-private-key-id",
   privateKey: "your-private-key",
   clientEmail: "your-client-email",
-  clientId: "your-client-id",
-  clientCertUrl: "your-client-cert-url",
 });
 
 // Create a document
@@ -66,34 +63,15 @@ console.log("Games with score > 50:", userGames);
 await firestore.delete("games", game.id);
 ```
 
-### Using environment variables
+## Configuration
 
-If you prefer to use environment variables, you can use the provided helper function:
+The `FirestoreConfig` object requires the following properties:
 
-```typescript
-import {
-  createFirestoreClient,
-  loadConfigFromEnv,
-} from "firebase-rest-firestore";
-
-// First set your environment variables:
-// FIREBASE_PROJECT_ID=your-project-id
-// FIREBASE_PRIVATE_KEY_ID=your-private-key-id
-// FIREBASE_PRIVATE_KEY=your-private-key
-// FIREBASE_CLIENT_EMAIL=your-client-email
-// FIREBASE_CLIENT_ID=your-client-id
-// FIREBASE_CLIENT_CERT_URL=your-client-cert-url
-
-// Then load config from environment variables
-const config = loadConfigFromEnv();
-const firestore = createFirestoreClient(config);
-
-// Use the client as usual
-const game = await firestore.create("games", {
-  name: "New Game",
-  score: 100,
-});
-```
+| Property    | Description                  |
+| ----------- | ---------------------------- |
+| projectId   | Firebase project ID          |
+| privateKey  | Service account private key  |
+| clientEmail | Service account client email |
 
 ## API Reference
 
