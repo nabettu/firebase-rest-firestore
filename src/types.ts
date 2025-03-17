@@ -46,6 +46,7 @@ export interface FirestoreResponse {
 export interface QueryOptions {
   where?: Array<{ field: string; op: string; value: any }>;
   orderBy?: string;
+  orderDirection?: string;
   limit?: number;
   offset?: number;
 }

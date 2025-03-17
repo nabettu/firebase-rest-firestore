@@ -2,7 +2,16 @@
 export * from "./types";
 
 // クライアントのエクスポート
-import { FirestoreClient, createFirestoreClient } from "./client";
+import {
+  FirestoreClient,
+  createFirestoreClient,
+  CollectionReference,
+  DocumentReference,
+  Query,
+  QuerySnapshot,
+  DocumentSnapshot,
+  WriteResult,
+} from "./client";
 
 // ユーティリティ関数のエクスポート
 export { getFirestoreToken } from "./utils/auth";
@@ -15,4 +24,13 @@ export {
 export { getFirestoreBasePath, getDocumentId } from "./utils/path";
 
 // クライアント関連のエクスポート
-export { FirestoreClient, createFirestoreClient };
+export {
+  FirestoreClient,
+  createFirestoreClient,
+  CollectionReference,
+  DocumentReference,
+  Query,
+  QuerySnapshot,
+  DocumentSnapshot,
+  WriteResult,
+};
