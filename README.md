@@ -9,6 +9,7 @@ Firebase Firestore REST API client for Edge runtime environments like Cloudflare
 - TypeScript support
 - Token caching for better performance
 - Simple and intuitive API
+- Configurable via environment variables or direct configuration
 
 ## Installation
 
@@ -20,16 +21,18 @@ npm install firebase-rest-firestore
 
 ### Setup environment variables
 
-Make sure you have the following environment variables set:
+You can configure the client using environment variables:
 
+```
 FIREBASE_PROJECT_ID=your-project-id
 FIREBASE_PRIVATE_KEY_ID=your-private-key-id
 FIREBASE_PRIVATE_KEY=your-private-key
 FIREBASE_CLIENT_EMAIL=your-client-email
 FIREBASE_CLIENT_ID=your-client-id
 FIREBASE_CLIENT_CERT_URL=your-client-cert-url
+```
 
-### Basic usage
+### Basic usage with environment variables
 
 ```typescript
 import { firestore } from "firebase-rest-firestore";
@@ -66,6 +69,30 @@ console.log("Games with score > 50:", userGames);
 await firestore.delete("games", game.id);
 ```
 
+### Usage with direct configuration
+
+You can also configure the client directly without environment variables:
+
+```typescript
+import { createFirestoreClient } from "firebase-rest-firestore";
+
+// Create a custom client with your configuration
+const firestore = createFirestoreClient({
+  projectId: "your-project-id",
+  privateKeyId: "your-private-key-id",
+  privateKey: "your-private-key",
+  clientEmail: "your-client-email",
+  clientId: "your-client-id",
+  clientCertUrl: "your-client-cert-url",
+});
+
+// Use the client as usual
+const game = await firestore.create("games", {
+  name: "New Game",
+  score: 100,
+});
+```
+
 ## API Reference
 
 ### FirestoreClient
@@ -91,6 +118,10 @@ Deletes a document.
 #### query(collectionName, options)
 
 Queries documents in a collection with filtering, ordering, and pagination.
+
+### createFirestoreClient(config)
+
+Creates a new FirestoreClient instance with the provided configuration.
 
 ## License
 

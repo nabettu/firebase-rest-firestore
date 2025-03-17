@@ -1,19 +1,17 @@
 {
   "name": "firebase-rest-firestore",
   "version": "0.1.0",
-  "description": "Firebase Firestore REST API client for Edge runtime",
-  "main": "dist/cjs/index.js",
-  "module": "dist/esm/index.js",
-  "types": "dist/types/index.d.ts",
+  "description": "Firebase Firestore REST API client for Edge runtime environments",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
-    "clean": "rimraf dist",
-    "build": "npm run clean && npm run build:esm && npm run build:cjs",
-    "build:esm": "tsc --outDir dist/esm --module ESNext",
-    "build:cjs": "tsc --outDir dist/cjs --module CommonJS",
-    "prepublishOnly": "npm run build"
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
     "firebase",
@@ -22,27 +20,27 @@
     "api",
     "edge",
     "cloudflare",
+    "workers",
     "vercel"
   ],
-  "author": "nabettu",
+  "author": "",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/nabettu/firebase-rest-firestore.git"
-  },
-  "bugs": {
-    "url": "https://github.com/nabettu/firebase-rest-firestore/issues"
-  },
-  "homepage": "https://github.com/nabettu/firebase-rest-firestore#readme",
   "dependencies": {
     "jose": "^4.14.4"
   },
   "devDependencies": {
-    "@types/node": "^18.15.11",
-    "rimraf": "^4.4.1",
+    "@types/node": "^18.16.0",
     "typescript": "^5.0.4"
   },
   "engines": {
-    "node": ">=14.0.0"
-  }
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/firebase-rest-firestore.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/firebase-rest-firestore/issues"
+  },
+  "homepage": "https://github.com/yourusername/firebase-rest-firestore#readme"
 }
