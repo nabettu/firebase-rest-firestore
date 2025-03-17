@@ -1,0 +1,48 @@
+{
+  "name": "firebase-rest-firestore",
+  "version": "0.1.0",
+  "description": "Firebase Firestore REST API client for Edge runtime",
+  "main": "dist/cjs/index.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/types/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "clean": "rimraf dist",
+    "build": "npm run clean && npm run build:esm && npm run build:cjs",
+    "build:esm": "tsc --outDir dist/esm --module ESNext",
+    "build:cjs": "tsc --outDir dist/cjs --module CommonJS",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "firebase",
+    "firestore",
+    "rest",
+    "api",
+    "edge",
+    "cloudflare",
+    "vercel"
+  ],
+  "author": "nabettu",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nabettu/firebase-rest-firestore.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nabettu/firebase-rest-firestore/issues"
+  },
+  "homepage": "https://github.com/nabettu/firebase-rest-firestore#readme",
+  "dependencies": {
+    "jose": "^4.14.4"
+  },
+  "devDependencies": {
+    "@types/node": "^18.15.11",
+    "rimraf": "^4.4.1",
+    "typescript": "^5.0.4"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
