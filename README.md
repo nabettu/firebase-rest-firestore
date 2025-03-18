@@ -19,7 +19,7 @@ Firebase Firestore REST API client for Edge runtime environments like Cloudflare
 npm install firebase-rest-firestore
 ```
 
-## Usage
+## Quick Start
 
 ```typescript
 import { createFirestoreClient } from "firebase-rest-firestore";
@@ -31,33 +31,17 @@ const firestore = createFirestoreClient({
   clientEmail: "your-client-email",
 });
 
-// Create a document with auto-generated ID
-const gameRef = firestore.collection("games").doc();
-await gameRef.set({
-  name: "New Game",
-  createdAt: new Date(),
-  score: 100,
-  active: true,
-});
-console.log("Created game ID:", gameRef.id);
-
-// Create a document with specific ID
-await firestore.collection("games").doc("game123").set({
-  name: "Specific Game",
-  createdAt: new Date(),
+// Add a document
+const newDoc = await firestore.add("collection", {
+  name: "Test Document",
+  value: 100,
 });
 
 // Get a document
-const gameDoc = await firestore.doc("games/game123").get();
-if (gameDoc.exists) {
-  console.log("Fetched game:", gameDoc.data());
-}
+const doc = await firestore.get("collection", newDoc.id);
 
 // Update a document
-await firestore.collection("games").doc("game123").update({
-  name: "Updated Game Name",
-  updatedAt: new Date(),
-});
+await firestore.update("collection", newDoc.id, { value: 200 });
 
 // Query documents
 const querySnapshot = await firestore
@@ -79,19 +63,7 @@ querySnapshot.forEach(doc => {
 console.log("Games with score > 50:", games);
 
 // Delete a document
-await firestore.collection("games").doc("game123").delete();
-
-// Working with subcollections
-const commentRef = firestore
-  .collection("games")
-  .doc("game123")
-  .collection("comments")
-  .doc();
-
-await commentRef.set({
-  text: "Great game!",
-  createdAt: new Date(),
-});
+await firestore.delete("collection", newDoc.id);
 ```
 
 ## Configuration
@@ -151,9 +123,16 @@ Queries documents in a collection with filtering, ordering, and pagination.
 
 Creates a new FirestoreClient instance with the provided configuration.
 
-### loadConfigFromEnv()
+#### add(collectionName, data)
 
-Helper function to load configuration from environment variables.
+Adds a new document to the specified collection.
+
+Parameters:
+
+- `collectionName`: Name of the collection
+- `data`: Document data to be added
+
+Returns: The added document with auto-generated ID.
 
 ## Error Handling
 

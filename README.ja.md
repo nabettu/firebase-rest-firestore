@@ -218,6 +218,77 @@ export default {
 };
 ```
 
+## クイックスタート
+
+```typescript
+import { createFirestoreClient } from "firebase-rest-firestore";
+
+// 設定オブジェクトでクライアントを初期化
+const firestore = createFirestoreClient({
+  projectId: "your-project-id",
+  privateKey: "your-private-key",
+  clientEmail: "your-client-email",
+});
+
+// ドキュメントの追加
+const newDoc = await firestore.add("collection", {
+  name: "テストドキュメント",
+  value: 100,
+});
+
+// ドキュメントの取得
+const doc = await firestore.get("collection", newDoc.id);
+
+// ドキュメントの更新
+await firestore.update("collection", newDoc.id, { value: 200 });
+
+// ドキュメントのクエリ
+const querySnapshot = await firestore
+  .collection("games")
+  .where("score", ">", 50)
+  .where("active", "==", true)
+  .orderBy("score", "desc")
+  .limit(10)
+  .get();
+
+const games = [];
+querySnapshot.forEach(doc => {
+  games.push({
+    id: doc.id,
+    ...doc.data(),
+  });
+});
+console.log("Games with score > 50:", games);
+
+// ドキュメントの削除
+await firestore.delete("collection", newDoc.id);
+```
+
+## 設定
+
+Firestore の権限を持つ Firebase サービスアカウントが必要です：
+
+```typescript
+createFirestoreClient({
+  projectId: "your-project-id",
+  privateKey: "your-private-key", // エスケープされた改行(\\n)を含む場合、自動的にフォーマットされます
+  clientEmail: "your-client-email",
+});
+```
+
+## API リファレンス
+
+### add(collectionName, data)
+
+コレクションに新しいドキュメントを追加します。
+
+パラメータ:
+
+- `collectionName`: コレクション名
+- `data`: 追加するドキュメントデータ
+
+戻り値: 自動生成された ID を持つ追加されたドキュメント。
+
 ## ライセンス
 
 MIT

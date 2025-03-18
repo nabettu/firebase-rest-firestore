@@ -94,7 +94,7 @@ describe("Firebase Rest Firestore", () => {
       active: true,
     };
 
-    const createdDoc = await client.create(testCollection, testData);
+    const createdDoc = await client.add(testCollection, testData);
     createdIds.push(createdDoc.id);
 
     expect(createdDoc).toBeDefined();
@@ -196,7 +196,7 @@ describe("Firebase Rest Firestore", () => {
     ];
 
     for (const data of testData) {
-      const doc = await client.create(testCollection, data);
+      const doc = await client.add(testCollection, data);
       createdIds.push(doc.id);
     }
 
@@ -236,7 +236,7 @@ describe("Firebase Rest Firestore", () => {
     const createdIndexedIds: string[] = [];
 
     for (const data of testData) {
-      const doc = await client.create(indexedCollection, data);
+      const doc = await client.add(indexedCollection, data);
       createdIndexedIds.push(doc.id);
     }
 

@@ -103,12 +103,12 @@ export class FirestoreClient {
   }
 
   /**
-   * Firestoreにドキュメントを作成
+   * Firestoreにドキュメントを追加
    * @param collectionName コレクション名
-   * @param data 作成するデータ
-   * @returns 作成されたドキュメント
+   * @param data 追加するデータ
+   * @returns 追加されたドキュメント
    */
-  async create(collectionName: string, data: Record<string, any>) {
+  async add(collectionName: string, data: Record<string, any>) {
     // 操作前に設定をチェック
     this.checkConfig();
 
@@ -308,12 +308,11 @@ export class FirestoreClient {
 
     const token = await this.getToken();
 
-    // リクエストボディ
+    // 修正: structuredQueryをラップしたリクエストボディを作成
     const requestBody = {
       structuredQuery: structuredQuery,
     };
 
-    console.log("クエリURL:", url);
     console.log("クエリリクエスト:", JSON.stringify(requestBody, null, 2));
 
     try {
@@ -394,7 +393,7 @@ export class CollectionReference {
    * @returns 作成されたドキュメントのリファレンス
    */
   async add(data: Record<string, any>): Promise<DocumentReference> {
-    const result = await this.client.create(this.path, data);
+    const result = await this.client.add(this.path, data);
     const docId = result.id;
     return new DocumentReference(this.client, this.path, docId);
   }
@@ -593,7 +592,7 @@ export class DocumentReference {
     } else {
       // 新規作成
       const newData = { ...data, id: this.docId };
-      await this.client.create(this.collectionPath, newData);
+      await this.client.add(this.collectionPath, newData);
     }
 
     return new WriteResult();
