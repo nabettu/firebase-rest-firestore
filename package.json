@@ -1,6 +1,6 @@
 {
   "name": "firebase-rest-firestore",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Firebase Firestore REST API client for Edge runtime environments",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -11,7 +11,7 @@
   "scripts": {
     "build": "tsc",
     "prepublishOnly": "npm run build",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest"
   },
   "keywords": [
     "firebase",
@@ -30,7 +30,9 @@
   },
   "devDependencies": {
     "@types/node": "^18.16.0",
-    "typescript": "^5.0.4"
+    "dotenv": "^16.4.7",
+    "typescript": "^5.0.4",
+    "vitest": "^3.0.9"
   },
   "engines": {
     "node": ">=16.0.0"

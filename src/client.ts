@@ -6,6 +6,7 @@ import {
   convertToFirestoreValue,
 } from "./utils/converter";
 import { getFirestoreBasePath } from "./utils/path";
+import { formatPrivateKey } from "./utils/config";
 
 /**
  * Firestoreクライアントクラス
@@ -246,10 +247,10 @@ export class FirestoreClient {
     // 操作前に設定をチェック
     this.checkConfig();
 
-    const url = `${getFirestoreBasePath(
-      this.config.projectId,
-      collectionName
-    )}:runQuery`;
+    // 修正: URLの形式を修正
+    // :runQueryはコレクション単位ではなく、ドキュメントルート単位で実行
+    const basePath = `https://firestore.googleapis.com/v1/projects/${this.config.projectId}/databases/(default)/documents`;
+    const url = `${basePath}:runQuery`;
 
     // クエリ構築
     const structuredQuery: any = {
@@ -258,18 +259,31 @@ export class FirestoreClient {
 
     // フィルター条件
     if (options.where && options.where.length > 0) {
-      structuredQuery.where = {
-        compositeFilter: {
-          op: "AND",
-          filters: options.where.map(condition => ({
-            fieldFilter: {
-              field: { fieldPath: condition.field },
-              op: condition.op,
-              value: convertToFirestoreValue(condition.value),
-            },
-          })),
-        },
-      };
+      // シンプルなケース: 1つの条件の場合
+      if (options.where.length === 1) {
+        const condition = options.where[0];
+        structuredQuery.where = {
+          fieldFilter: {
+            field: { fieldPath: condition.field },
+            op: condition.op,
+            value: convertToFirestoreValue(condition.value),
+          },
+        };
+      } else {
+        // 複数条件の場合
+        structuredQuery.where = {
+          compositeFilter: {
+            op: "AND",
+            filters: options.where.map(condition => ({
+              fieldFilter: {
+                field: { fieldPath: condition.field },
+                op: condition.op,
+                value: convertToFirestoreValue(condition.value),
+              },
+            })),
+          },
+        };
+      }
     }
 
     // 並べ替え
@@ -293,27 +307,52 @@ export class FirestoreClient {
     }
 
     const token = await this.getToken();
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        structuredQuery,
-      }),
-    });
 
-    if (!response.ok) {
-      throw new Error(`Firestore API error: ${response.statusText}`);
+    // リクエストボディ
+    const requestBody = {
+      structuredQuery: structuredQuery,
+    };
+
+    console.log("クエリURL:", url);
+    console.log("クエリリクエスト:", JSON.stringify(requestBody, null, 2));
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const responseText = await response.text();
+      console.log("API レスポンス:", responseText);
+
+      if (!response.ok) {
+        throw new Error(
+          `Firestore API error: ${response.statusText} - ${responseText}`
+        );
+      }
+
+      const results = JSON.parse(responseText) as Array<{
+        document?: FirestoreResponse;
+        readTime?: string;
+      }>;
+
+      console.log("変換前の結果:", results);
+
+      const convertedResults = results
+        .filter(item => item.document)
+        .map(item => convertFromFirestoreDocument(item.document!));
+
+      console.log("変換後の結果:", convertedResults);
+
+      return convertedResults;
+    } catch (error) {
+      console.error("クエリ実行エラー:", error);
+      throw error;
     }
-
-    const results = (await response.json()) as Array<{
-      document?: FirestoreResponse;
-    }>;
-    return results
-      .filter(item => item.document)
-      .map(item => convertFromFirestoreDocument(item.document!));
   }
 }
 
@@ -821,5 +860,12 @@ export class WriteResult {
  * @returns FirestoreClientインスタンス
  */
 export function createFirestoreClient(config: FirestoreConfig) {
+  // 秘密鍵のフォーマットを確認
+  if (config.privateKey) {
+    config = {
+      ...config,
+      privateKey: formatPrivateKey(config.privateKey),
+    };
+  }
   return new FirestoreClient(config);
 }

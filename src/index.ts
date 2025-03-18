@@ -22,6 +22,7 @@ export {
   convertFromFirestoreDocument,
 } from "./utils/converter";
 export { getFirestoreBasePath, getDocumentId } from "./utils/path";
+export { formatPrivateKey, formatConfig } from "./utils/config";
 
 // クライアント関連のエクスポート
 export {
