@@ -11,6 +11,7 @@ Firebase Firestore REST API client for Edge runtime environments like Cloudflare
 - Simple and intuitive API
 - Explicit configuration without hidden environment variable dependencies
 - Firebase Admin SDK compatible interface (v0.2.0+)
+- Lazy configuration validation for Next.js compatibility (v0.2.1+)
 
 ## Installation
 
@@ -458,6 +459,7 @@ Firebase Firestore REST API クライアントは、Cloudflare Workers や Verce
 - シンプルで直感的な API
 - 環境変数に依存しない明示的な設定
 - Firebase Admin SDK compatible interface (v0.2.0+)
+- Next.js 互換性のための遅延設定検証 (v0.2.1+)
 
 ## インストール
 

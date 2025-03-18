@@ -14,6 +14,7 @@ export class FirestoreClient {
   private token: string | null = null;
   private tokenExpiry: number = 0;
   private config: FirestoreConfig;
+  private configChecked: boolean = false;
 
   /**
    * コンストラクタ
@@ -21,6 +22,18 @@ export class FirestoreClient {
    */
   constructor(config: FirestoreConfig) {
     this.config = config;
+    // ビルド時にはチェックを行わない
+    // 実際の操作時に遅延チェックを行う
+  }
+
+  /**
+   * 設定パラメータをチェック
+   * @private
+   */
+  private checkConfig() {
+    if (this.configChecked) {
+      return;
+    }
 
     // 必須パラメータのチェック
     const requiredParams: Array<keyof FirestoreConfig> = [
@@ -37,12 +50,17 @@ export class FirestoreClient {
         )}`
       );
     }
+
+    this.configChecked = true;
   }
 
   /**
    * 認証トークンを取得（キャッシュあり）
    */
   private async getToken(): Promise<string> {
+    // 操作前に設定をチェック
+    this.checkConfig();
+
     const now = Date.now();
     // トークンが期限切れか未取得の場合は新しく取得
     if (!this.token || now >= this.tokenExpiry) {
@@ -59,6 +77,7 @@ export class FirestoreClient {
    * @returns CollectionReferenceインスタンス
    */
   collection(path: string): CollectionReference {
+    // 設定チェックは実際の操作時に行われる
     return new CollectionReference(this, path);
   }
 
@@ -68,6 +87,7 @@ export class FirestoreClient {
    * @returns DocumentReferenceインスタンス
    */
   doc(path: string): DocumentReference {
+    // 設定チェックは実際の操作時に行われる
     const parts = path.split("/");
     if (parts.length % 2 === 0) {
       throw new Error(
@@ -88,6 +108,9 @@ export class FirestoreClient {
    * @returns 作成されたドキュメント
    */
   async create(collectionName: string, data: Record<string, any>) {
+    // 操作前に設定をチェック
+    this.checkConfig();
+
     const url = getFirestoreBasePath(this.config.projectId, collectionName);
     const firestoreData = convertToFirestoreDocument(data);
 
@@ -116,6 +139,9 @@ export class FirestoreClient {
    * @returns 取得したドキュメント（存在しない場合はnull）
    */
   async get(collectionName: string, documentId: string) {
+    // 操作前に設定をチェック
+    this.checkConfig();
+
     const url = `${getFirestoreBasePath(
       this.config.projectId,
       collectionName
@@ -153,6 +179,9 @@ export class FirestoreClient {
     documentId: string,
     data: Record<string, any>
   ) {
+    // 操作前に設定をチェック
+    this.checkConfig();
+
     const url = `${getFirestoreBasePath(
       this.config.projectId,
       collectionName
@@ -184,6 +213,9 @@ export class FirestoreClient {
    * @returns 削除成功時はtrue
    */
   async delete(collectionName: string, documentId: string) {
+    // 操作前に設定をチェック
+    this.checkConfig();
+
     const url = `${getFirestoreBasePath(
       this.config.projectId,
       collectionName
@@ -211,6 +243,9 @@ export class FirestoreClient {
    * @returns 検索結果のドキュメント配列
    */
   async query(collectionName: string, options: QueryOptions = {}) {
+    // 操作前に設定をチェック
+    this.checkConfig();
+
     const url = `${getFirestoreBasePath(
       this.config.projectId,
       collectionName

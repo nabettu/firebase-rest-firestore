@@ -1,6 +1,6 @@
 {
   "name": "firebase-rest-firestore",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "description": "Firebase Firestore REST API client for Edge runtime environments",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -37,10 +37,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/firebase-rest-firestore.git"
+    "url": "git+https://github.com/nabettu/firebase-rest-firestore.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/firebase-rest-firestore/issues"
+    "url": "https://github.com/nabettu/firebase-rest-firestore/issues"
   },
-  "homepage": "https://github.com/yourusername/firebase-rest-firestore#readme"
+  "homepage": "https://github.com/nabettu/firebase-rest-firestore#readme"
 }
