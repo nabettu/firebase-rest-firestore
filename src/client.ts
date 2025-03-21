@@ -619,6 +619,138 @@ export class DocumentReference {
 }
 
 /**
+ * コレクショングループ
+ */
+export class CollectionGroup {
+  private client: FirestoreClient;
+  private path: string;
+  private _queryConstraints: {
+    where: Array<{ field: string; op: string; value: any }>;
+    orderBy?: string;
+    orderDirection?: string;
+    limit?: number;
+    offset?: number;
+  };
+
+  constructor(client: FirestoreClient, path: string) {
+    this.client = client;
+    this.path = path;
+    this._queryConstraints = {
+      where: [],
+    };
+  }
+
+  /**
+   * フィルター条件を追加
+   * @param fieldPath フィールドパス
+   * @param opStr 演算子
+   * @param value 値
+   * @returns Queryインスタンス
+   */
+  where(fieldPath: string, opStr: string, value: any): Query {
+    const query = new Query(this.client, this.path, {
+      ...this._queryConstraints,
+    });
+
+    // 演算子の変換
+    let firestoreOp: string;
+    switch (opStr) {
+      case "==":
+        firestoreOp = "EQUAL";
+        break;
+      case "!=":
+        firestoreOp = "NOT_EQUAL";
+        break;
+      case "<":
+        firestoreOp = "LESS_THAN";
+        break;
+      case "<=":
+        firestoreOp = "LESS_THAN_OR_EQUAL";
+        break;
+      case ">":
+        firestoreOp = "GREATER_THAN";
+        break;
+      case ">=":
+        firestoreOp = "GREATER_THAN_OR_EQUAL";
+        break;
+      case "array-contains":
+        firestoreOp = "ARRAY_CONTAINS";
+        break;
+      case "in":
+        firestoreOp = "IN";
+        break;
+      case "array-contains-any":
+        firestoreOp = "ARRAY_CONTAINS_ANY";
+        break;
+      case "not-in":
+        firestoreOp = "NOT_IN";
+        break;
+      default:
+        firestoreOp = opStr;
+    }
+
+    query._queryConstraints.where.push({
+      field: fieldPath,
+      op: firestoreOp,
+      value,
+    });
+
+    return query;
+  }
+
+  /**
+   * 並べ替え条件を追加
+   * @param fieldPath フィールドパス
+   * @param directionStr 並べ替え方向（'asc'または'desc'）
+   * @returns Queryインスタンス
+   */
+  orderBy(fieldPath: string, directionStr: "asc" | "desc" = "asc"): Query {
+    const query = new Query(this.client, this.path, {
+      ...this._queryConstraints,
+    });
+    query._queryConstraints.orderBy = fieldPath;
+    query._queryConstraints.orderDirection =
+      directionStr === "asc" ? "ASCENDING" : "DESCENDING";
+    return query;
+  }
+
+  /**
+   * 取得件数の制限を設定
+   * @param limit 最大件数
+   * @returns Queryインスタンス
+   */
+  limit(limit: number): Query {
+    const query = new Query(this.client, this.path, {
+      ...this._queryConstraints,
+    });
+    query._queryConstraints.limit = limit;
+    return query;
+  }
+
+  /**
+   * スキップ件数を設定
+   * @param offset スキップ件数
+   * @returns Queryインスタンス
+   */
+  offset(offset: number): Query {
+    const query = new Query(this.client, this.path, {
+      ...this._queryConstraints,
+    });
+    query._queryConstraints.offset = offset;
+    return query;
+  }
+
+  /**
+   * クエリを実行
+   * @returns QuerySnapshotインスタンス
+   */
+  async get(): Promise<QuerySnapshot> {
+    const results = await this.client.query(this.path, this._queryConstraints);
+    return new QuerySnapshot(results);
+  }
+}
+
+/**
  * クエリクラス
  */
 export class Query {
