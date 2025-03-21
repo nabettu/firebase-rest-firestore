@@ -248,22 +248,30 @@ export class FirestoreClient {
 
   /**
    * コレクションのドキュメントを検索
-   * @param collectionName コレクション名
+   * @param collectionPath コレクションパス
    * @param options クエリオプション
    * @param allDescendants 子孫コレクションを含むかどうか
    * @returns 検索結果のドキュメント配列
    */
   async query(
-    collectionName: string,
+    collectionPath: string,
     options: QueryOptions = {},
     allDescendants: boolean
   ) {
     // 操作前に設定をチェック
     this.checkConfig();
 
-    // 修正: URLの形式を修正
     // :runQueryはコレクション単位ではなく、ドキュメントルート単位で実行
-    const basePath = `https://firestore.googleapis.com/v1/projects/${this.config.projectId}/databases/(default)/documents`;
+    // コレクション名パス形式の場合は、endpointをドキュメントルートに置き換える。collectionNameはコレクションIDにする
+    // e.g) パス形式: collectionPath = "/users/123/items" の場合は、collectionPaths = ["users", "123", "items"], collectionName = "items", basePath += "/users/123"
+    // e.g) 単一形式: collectionPath = "items" の場合は、collectionPaths = ["items"], collectionName = "items", basePath += ""
+    const collectionPaths = collectionPath.split("/");
+    let basePath = `https://firestore.googleapis.com/v1/projects/${this.config.projectId}/databases/(default)/documents`;
+    let collectionName = collectionPath;
+    if (collectionPaths.length > 1) {
+      basePath = `${basePath}/${collectionPaths.slice(0, -1).join("/")}`;
+      collectionName = collectionPaths[collectionPaths.length - 1];
+    }
     const url = `${basePath}:runQuery`;
 
     // クエリ構築
