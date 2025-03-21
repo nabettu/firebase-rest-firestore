@@ -29,8 +29,11 @@
     "jose": "^4.14.4"
   },
   "devDependencies": {
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
     "@types/node": "^18.16.0",
     "dotenv": "^16.4.7",
+    "semantic-release": "^24.2.3",
     "typescript": "^5.0.4",
     "vitest": "^3.0.9"
   },
