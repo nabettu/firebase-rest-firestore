@@ -241,9 +241,14 @@ export class FirestoreClient {
    * コレクションのドキュメントを検索
    * @param collectionName コレクション名
    * @param options クエリオプション
+   * @param isCollectionGroupQuery コレクショングループクエリかどうか
    * @returns 検索結果のドキュメント配列
    */
-  async query(collectionName: string, options: QueryOptions = {}) {
+  async query(
+    collectionName: string,
+    options: QueryOptions = {},
+    isCollectionGroupQuery: boolean = false
+  ) {
     // 操作前に設定をチェック
     this.checkConfig();
 
@@ -253,8 +258,14 @@ export class FirestoreClient {
     const url = `${basePath}:runQuery`;
 
     // クエリ構築
+    //allDescendants: falseの場合は直下のcollectionを参照。trueの場合は子孫コレクションも参照
     const structuredQuery: any = {
-      from: [{ collectionId: collectionName }],
+      from: [
+        {
+          collectionId: collectionName,
+          allDescendants: isCollectionGroupQuery,
+        },
+      ],
     };
 
     // フィルター条件
@@ -745,7 +756,11 @@ export class CollectionGroup {
    * @returns QuerySnapshotインスタンス
    */
   async get(): Promise<QuerySnapshot> {
-    const results = await this.client.query(this.path, this._queryConstraints);
+    const results = await this.client.query(
+      this.path,
+      this._queryConstraints,
+      true
+    );
     return new QuerySnapshot(results);
   }
 }
