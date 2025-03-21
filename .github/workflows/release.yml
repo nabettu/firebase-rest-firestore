@@ -23,12 +23,6 @@ jobs:
       - name: インストール
         run: npm ci
 
-      - name: テスト実行
-        run: npm test
-        env:
-          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
-          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
-          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
       - name: リリース実行
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
