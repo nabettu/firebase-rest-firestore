@@ -13,15 +13,28 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: "18.x"
+          node-version: "20.x"
           registry-url: "https://registry.npmjs.org"
+
+      - name: Gitの設定
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
 
       - name: インストール
         run: npm ci
+
+      - name: テスト実行
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
+        run: npm test
 
       - name: リリース実行
         env:

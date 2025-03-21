@@ -1,6 +1,6 @@
 {
   "name": "firebase-rest-firestore",
-  "version": "0.3.1",
+  "version": "0.0.0-development",
   "description": "Firebase Firestore REST API client for Edge runtime environments",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -38,7 +38,7 @@
     "vitest": "^3.0.9"
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=20.8.1"
   },
   "repository": {
     "type": "git",
