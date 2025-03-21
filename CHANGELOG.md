@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/nabettu/firebase-rest-firestore/compare/v1.0.0...v1.1.0) (2025-03-21)
+
+
+### Features
+
+* ネストしたコレクションの操作とコレクショングループクエリのテストを追加 ([ddd8327](https://github.com/nabettu/firebase-rest-firestore/commit/ddd8327364fe119d73419742ab2a9c34317bbcfc))
+
 # 1.0.0 (2025-03-21)
 
 
