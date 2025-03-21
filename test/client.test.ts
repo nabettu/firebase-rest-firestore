@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { FirestoreClient, createFirestoreClient } from "../src/client";
+import {
+  FirestoreClient,
+  createFirestoreClient,
+  DocumentReference,
+} from "../src/client";
 import { loadConfig, getTestCollectionName } from "./helpers";
 
 /**
@@ -54,11 +58,13 @@ import { loadConfig, getTestCollectionName } from "./helpers";
 
 // 固定のテストコレクション名（複合インデックス用）
 const INDEXED_TEST_COLLECTION = "test_indexed_collection";
+// コレクショングループテスト用の固定コレクション名
+const NESTED_COLLECTION_NAME = "items";
 
 describe("Firebase Rest Firestore", () => {
   let client: FirestoreClient;
   let testCollection: string;
-  let createdIds: string[] = [];
+  let createdIds: { collection: string; id: string }[] = [];
 
   beforeEach(() => {
     // 環境変数から設定を読み込みクライアントを初期化
@@ -71,11 +77,13 @@ describe("Firebase Rest Firestore", () => {
 
   afterEach(async () => {
     // テストで作成したドキュメントをクリーンアップ
-    for (const id of createdIds) {
+    for (const { collection, id } of createdIds) {
       try {
-        await client.delete(testCollection, id);
+        await client.delete(collection, id);
       } catch (err) {
-        console.error(`Clean up failed for document ${id}: ${err}`);
+        console.error(
+          `Clean up failed for document ${collection}/${id}: ${err}`
+        );
       }
     }
   });
@@ -95,7 +103,7 @@ describe("Firebase Rest Firestore", () => {
     };
 
     const createdDoc = await client.add(testCollection, testData);
-    createdIds.push(createdDoc.id);
+    createdIds.push({ collection: testCollection, id: createdDoc.id });
 
     expect(createdDoc).toBeDefined();
     expect(createdDoc.id).toBeDefined();
@@ -142,7 +150,9 @@ describe("Firebase Rest Firestore", () => {
     expect(deletedDoc).toBeNull();
 
     // 削除済みのIDはクリーンアップ不要
-    createdIds = createdIds.filter(id => id !== createdDoc.id);
+    createdIds = createdIds.filter(
+      doc => !(doc.collection === testCollection && doc.id === createdDoc.id)
+    );
   });
 
   // リファレンスAPIテスト
@@ -154,7 +164,7 @@ describe("Firebase Rest Firestore", () => {
     // ドキュメント追加
     const testData = { name: "リファレンステスト", count: 100 };
     const docRef = await collRef.add(testData);
-    createdIds.push(docRef.id);
+    createdIds.push({ collection: testCollection, id: docRef.id });
 
     expect(docRef).toBeDefined();
     expect(docRef.id).toBeDefined();
@@ -183,7 +193,9 @@ describe("Firebase Rest Firestore", () => {
     expect(deletedSnapshot.exists).toBe(false);
 
     // 削除済みのIDはクリーンアップ不要
-    createdIds = createdIds.filter(id => id !== docRef.id);
+    createdIds = createdIds.filter(
+      doc => !(doc.collection === testCollection && doc.id === docRef.id)
+    );
   });
 
   // シンプルなクエリテスト
@@ -197,7 +209,7 @@ describe("Firebase Rest Firestore", () => {
 
     for (const data of testData) {
       const doc = await client.add(testCollection, data);
-      createdIds.push(doc.id);
+      createdIds.push({ collection: testCollection, id: doc.id });
     }
 
     // 単一条件のフィルタリングテストのみに絞る
@@ -233,11 +245,9 @@ describe("Firebase Rest Firestore", () => {
       { category: "A", price: 50, stock: false, tags: ["clearance"] },
     ];
 
-    const createdIndexedIds: string[] = [];
-
     for (const data of testData) {
       const doc = await client.add(indexedCollection, data);
-      createdIndexedIds.push(doc.id);
+      createdIds.push({ collection: indexedCollection, id: doc.id });
     }
 
     console.log("複数フィルタテスト開始");
@@ -352,15 +362,178 @@ describe("Firebase Rest Firestore", () => {
     } catch (error) {
       console.error("複数フィルタテスト失敗:", error);
       throw error;
-    } finally {
-      // テスト後にクリーンアップ
-      for (const id of createdIndexedIds) {
-        try {
-          await client.delete(indexedCollection, id);
-        } catch (err) {
-          console.error(`Clean up failed for indexed document ${id}: ${err}`);
-        }
-      }
+    }
+  });
+
+  // ネストしたコレクションのテスト
+  it("ネストしたコレクションでのドキュメント操作ができること", async () => {
+    // 親ドキュメント作成
+    const parentData = { name: "親ドキュメント" };
+    const parentDoc = await client.add(testCollection, parentData);
+    createdIds.push({ collection: testCollection, id: parentDoc.id });
+
+    // サブコレクションのリファレンス取得
+    const subCollectionRef = client.collection(
+      `${testCollection}/${parentDoc.id}/${NESTED_COLLECTION_NAME}`
+    );
+
+    // サブコレクションにデータ追加
+    const subCollectionData = [
+      { name: "サブアイテム1", value: 100 },
+      { name: "サブアイテム2", value: 200 },
+      { name: "サブアイテム3", value: 300 },
+    ];
+
+    // サブコレクションにドキュメント追加
+    const subDocRefs: DocumentReference[] = [];
+    for (const data of subCollectionData) {
+      const subDoc = await subCollectionRef.add(data);
+      subDocRefs.push(subDoc);
+      const nestedPath = `${testCollection}/${parentDoc.id}/${NESTED_COLLECTION_NAME}`;
+      createdIds.push({ collection: nestedPath, id: subDoc.id });
+    }
+
+    // サブコレクションからデータ取得
+    const subCollectionSnapshot = await subCollectionRef.get();
+    expect(subCollectionSnapshot.docs.length).toBe(3);
+
+    // サブコレクションの特定ドキュメント取得
+    const subDocSnapshot = await subDocRefs[0].get();
+    expect(subDocSnapshot.exists).toBe(true);
+    expect(subDocSnapshot.data()?.name).toBe("サブアイテム1");
+
+    // サブコレクションのクエリテスト
+    const querySnapshot = await subCollectionRef.where("value", ">", 150).get();
+
+    expect(querySnapshot.docs.length).toBe(2);
+    querySnapshot.docs.forEach(doc => {
+      expect(doc.data()?.value).toBeGreaterThan(150);
+    });
+
+    // サブドキュメントの更新
+    await subDocRefs[0].update({ value: 150 });
+    const updatedSubDoc = await subDocRefs[0].get();
+    expect(updatedSubDoc.data()?.value).toBe(150);
+
+    // サブドキュメントの削除とクリーンアップリストからの削除
+    const subDocIdToDelete = subDocRefs[2].id;
+    const nestedPathToDelete = `${testCollection}/${parentDoc.id}/${NESTED_COLLECTION_NAME}`;
+    await subDocRefs[2].delete();
+
+    // 削除確認
+    const deletedDocSnapshot = await client.get(
+      nestedPathToDelete,
+      subDocIdToDelete
+    );
+    expect(deletedDocSnapshot).toBeNull();
+
+    // クリーンアップリストから削除したドキュメントを除外
+    createdIds = createdIds.filter(
+      doc =>
+        !(doc.collection === nestedPathToDelete && doc.id === subDocIdToDelete)
+    );
+  });
+
+  // コレクショングループのテスト
+  it("コレクショングループでの横断的なクエリができること", async () => {
+    // 親コレクション1
+    const parentCollection1 = `${getTestCollectionName()}_parent1`;
+
+    // 親コレクション2
+    const parentCollection2 = `${getTestCollectionName()}_parent2`;
+
+    // 親ドキュメント1に作成
+    const parent1Data = { name: "親ドキュメント1" };
+    const parent1Doc = await client.add(parentCollection1, parent1Data);
+    createdIds.push({ collection: parentCollection1, id: parent1Doc.id });
+
+    // 親ドキュメント2を作成
+    const parent2Data = { name: "親ドキュメント2" };
+    const parent2Doc = await client.add(parentCollection2, parent2Data);
+    createdIds.push({ collection: parentCollection2, id: parent2Doc.id });
+
+    // 親1のサブコレクションにデータ追加
+    const subColl1Ref = client.collection(
+      `${parentCollection1}/${parent1Doc.id}/${NESTED_COLLECTION_NAME}`
+    );
+    const subColl1Data = [
+      { category: "A", price: 100 },
+      { category: "B", price: 200 },
+    ];
+
+    for (const data of subColl1Data) {
+      const doc = await subColl1Ref.add(data);
+      const path = `${parentCollection1}/${parent1Doc.id}/${NESTED_COLLECTION_NAME}`;
+      createdIds.push({ collection: path, id: doc.id });
+    }
+
+    // 親2のサブコレクションにデータ追加
+    const subColl2Ref = client.collection(
+      `${parentCollection2}/${parent2Doc.id}/${NESTED_COLLECTION_NAME}`
+    );
+    const subColl2Data = [
+      { category: "A", price: 300 },
+      { category: "C", price: 400 },
+    ];
+
+    for (const data of subColl2Data) {
+      const doc = await subColl2Ref.add(data);
+      const path = `${parentCollection2}/${parent2Doc.id}/${NESTED_COLLECTION_NAME}`;
+      createdIds.push({ collection: path, id: doc.id });
+    }
+
+    // コレクショングループで全サブコレクションからクエリを実行
+    console.log("コレクショングループテスト開始");
+    try {
+      // 全 "items" コレクションからカテゴリAのアイテムを検索
+      const groupQuery = await client
+        .collectionGroup(NESTED_COLLECTION_NAME)
+        .where("category", "==", "A")
+        .get();
+
+      console.log("コレクショングループクエリ結果:", groupQuery.docs.length);
+      expect(groupQuery.docs.length).toBe(2);
+
+      // すべての結果がカテゴリAであることを確認
+      groupQuery.docs.forEach(doc => {
+        expect(doc.data()?.category).toBe("A");
+      });
+
+      // プライス順にソートされたクエリ
+      const sortedQuery = await client
+        .collectionGroup(NESTED_COLLECTION_NAME)
+        .orderBy("price", "desc")
+        .get();
+
+      console.log("ソート結果:", sortedQuery.docs.length);
+      expect(sortedQuery.docs.length).toBe(4);
+
+      // 降順に並んでいることを確認
+      let lastPrice = Infinity;
+      sortedQuery.docs.forEach(doc => {
+        const currentPrice = doc.data()?.price;
+        expect(currentPrice).toBeLessThanOrEqual(lastPrice);
+        lastPrice = currentPrice;
+      });
+
+      // 複合条件のクエリ
+      const complexQuery = await client
+        .collectionGroup(NESTED_COLLECTION_NAME)
+        .where("category", "in", ["A", "B"])
+        .where("price", ">", 150)
+        .get();
+
+      console.log("複合条件結果:", complexQuery.docs.length);
+      expect(complexQuery.docs.length).toBe(2);
+
+      complexQuery.docs.forEach(doc => {
+        const data = doc.data();
+        expect(["A", "B"]).toContain(data?.category);
+        expect(data?.price).toBeGreaterThan(150);
+      });
+    } catch (error) {
+      console.error("コレクショングループテスト失敗:", error);
+      throw error;
     }
   });
 });
