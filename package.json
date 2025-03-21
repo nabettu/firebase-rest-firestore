@@ -1,6 +1,6 @@
 {
   "name": "firebase-rest-firestore",
-  "version": "0.0.0-development",
+  "version": "1.0.0",
   "description": "Firebase Firestore REST API client for Edge runtime environments",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
