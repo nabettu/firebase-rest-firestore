@@ -103,6 +103,15 @@ export class FirestoreClient {
   }
 
   /**
+   * コレクショングループリファレンスを取得
+   * @param path コレクショングループのID
+   * @returns CollectionGroupインスタンス
+   */
+  collectionGroup(path: string): CollectionGroup {
+    return new CollectionGroup(this, path);
+  }
+
+  /**
    * Firestoreにドキュメントを追加
    * @param collectionName コレクション名
    * @param data 追加するデータ
