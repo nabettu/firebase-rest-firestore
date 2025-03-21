@@ -250,13 +250,13 @@ export class FirestoreClient {
    * コレクションのドキュメントを検索
    * @param collectionName コレクション名
    * @param options クエリオプション
-   * @param isCollectionGroupQuery コレクショングループクエリかどうか
+   * @param allDescendants 子孫コレクションを含むかどうか
    * @returns 検索結果のドキュメント配列
    */
   async query(
     collectionName: string,
     options: QueryOptions = {},
-    isCollectionGroupQuery: boolean = false
+    allDescendants: boolean
   ) {
     // 操作前に設定をチェック
     this.checkConfig();
@@ -272,7 +272,7 @@ export class FirestoreClient {
       from: [
         {
           collectionId: collectionName,
-          allDescendants: isCollectionGroupQuery,
+          allDescendants,
         },
       ],
     };
@@ -398,6 +398,13 @@ export class CollectionReference {
   }
 
   /**
+   * すべての子孫コレクションを含むかどうか
+   */
+  get allDescendants(): boolean {
+    return false;
+  }
+
+  /**
    * ドキュメントリファレンスを取得
    * @param documentPath ドキュメントID（省略時は自動生成）
    * @returns DocumentReferenceインスタンス
@@ -426,9 +433,14 @@ export class CollectionReference {
    * @returns Queryインスタンス
    */
   where(fieldPath: string, opStr: string, value: any): Query {
-    const query = new Query(this.client, this.path, {
-      ...this._queryConstraints,
-    });
+    const query = new Query(
+      this.client,
+      this.path,
+      {
+        ...this._queryConstraints,
+      },
+      this.allDescendants
+    );
 
     // 演算子の変換
     let firestoreOp: string;
@@ -483,9 +495,14 @@ export class CollectionReference {
    * @returns Queryインスタンス
    */
   orderBy(fieldPath: string, directionStr: "asc" | "desc" = "asc"): Query {
-    const query = new Query(this.client, this.path, {
-      ...this._queryConstraints,
-    });
+    const query = new Query(
+      this.client,
+      this.path,
+      {
+        ...this._queryConstraints,
+      },
+      this.allDescendants
+    );
     query._queryConstraints.orderBy = fieldPath;
     query._queryConstraints.orderDirection =
       directionStr === "asc" ? "ASCENDING" : "DESCENDING";
@@ -498,9 +515,14 @@ export class CollectionReference {
    * @returns Queryインスタンス
    */
   limit(limit: number): Query {
-    const query = new Query(this.client, this.path, {
-      ...this._queryConstraints,
-    });
+    const query = new Query(
+      this.client,
+      this.path,
+      {
+        ...this._queryConstraints,
+      },
+      this.allDescendants
+    );
     query._queryConstraints.limit = limit;
     return query;
   }
@@ -511,9 +533,14 @@ export class CollectionReference {
    * @returns Queryインスタンス
    */
   offset(offset: number): Query {
-    const query = new Query(this.client, this.path, {
-      ...this._queryConstraints,
-    });
+    const query = new Query(
+      this.client,
+      this.path,
+      {
+        ...this._queryConstraints,
+      },
+      this.allDescendants
+    );
     query._queryConstraints.offset = offset;
     return query;
   }
@@ -523,7 +550,11 @@ export class CollectionReference {
    * @returns QuerySnapshotインスタンス
    */
   async get(): Promise<QuerySnapshot> {
-    const results = await this.client.query(this.path, this._queryConstraints);
+    const results = await this.client.query(
+      this.path,
+      this._queryConstraints,
+      this.allDescendants
+    );
     return new QuerySnapshot(results);
   }
 
@@ -661,6 +692,13 @@ export class CollectionGroup {
   }
 
   /**
+   * すべての子孫コレクションを含むかどうか
+   */
+  get allDescendants(): boolean {
+    return true;
+  }
+
+  /**
    * フィルター条件を追加
    * @param fieldPath フィールドパス
    * @param opStr 演算子
@@ -668,9 +706,14 @@ export class CollectionGroup {
    * @returns Queryインスタンス
    */
   where(fieldPath: string, opStr: string, value: any): Query {
-    const query = new Query(this.client, this.path, {
-      ...this._queryConstraints,
-    });
+    const query = new Query(
+      this.client,
+      this.path,
+      {
+        ...this._queryConstraints,
+      },
+      this.allDescendants
+    );
 
     // 演算子の変換
     let firestoreOp: string;
@@ -725,9 +768,14 @@ export class CollectionGroup {
    * @returns Queryインスタンス
    */
   orderBy(fieldPath: string, directionStr: "asc" | "desc" = "asc"): Query {
-    const query = new Query(this.client, this.path, {
-      ...this._queryConstraints,
-    });
+    const query = new Query(
+      this.client,
+      this.path,
+      {
+        ...this._queryConstraints,
+      },
+      this.allDescendants
+    );
     query._queryConstraints.orderBy = fieldPath;
     query._queryConstraints.orderDirection =
       directionStr === "asc" ? "ASCENDING" : "DESCENDING";
@@ -740,9 +788,14 @@ export class CollectionGroup {
    * @returns Queryインスタンス
    */
   limit(limit: number): Query {
-    const query = new Query(this.client, this.path, {
-      ...this._queryConstraints,
-    });
+    const query = new Query(
+      this.client,
+      this.path,
+      {
+        ...this._queryConstraints,
+      },
+      this.allDescendants
+    );
     query._queryConstraints.limit = limit;
     return query;
   }
@@ -753,9 +806,14 @@ export class CollectionGroup {
    * @returns Queryインスタンス
    */
   offset(offset: number): Query {
-    const query = new Query(this.client, this.path, {
-      ...this._queryConstraints,
-    });
+    const query = new Query(
+      this.client,
+      this.path,
+      {
+        ...this._queryConstraints,
+      },
+      this.allDescendants
+    );
     query._queryConstraints.offset = offset;
     return query;
   }
@@ -768,7 +826,7 @@ export class CollectionGroup {
     const results = await this.client.query(
       this.path,
       this._queryConstraints,
-      true
+      this.allDescendants
     );
     return new QuerySnapshot(results);
   }
@@ -780,6 +838,7 @@ export class CollectionGroup {
 export class Query {
   private client: FirestoreClient;
   private collectionPath: string;
+  private allDescendants: boolean;
   _queryConstraints: {
     where: Array<{ field: string; op: string; value: any }>;
     orderBy?: string;
@@ -797,11 +856,13 @@ export class Query {
       orderDirection?: string;
       limit?: number;
       offset?: number;
-    }
+    },
+    allDescendants: boolean
   ) {
     this.client = client;
     this.collectionPath = collectionPath;
     this._queryConstraints = constraints;
+    this.allDescendants = allDescendants;
   }
 
   /**
@@ -812,9 +873,14 @@ export class Query {
    * @returns Queryインスタンス
    */
   where(fieldPath: string, opStr: string, value: any): Query {
-    const query = new Query(this.client, this.collectionPath, {
-      ...this._queryConstraints,
-    });
+    const query = new Query(
+      this.client,
+      this.collectionPath,
+      {
+        ...this._queryConstraints,
+      },
+      this.allDescendants
+    );
 
     // 演算子の変換
     let firestoreOp: string;
@@ -869,9 +935,14 @@ export class Query {
    * @returns Queryインスタンス
    */
   orderBy(fieldPath: string, directionStr: "asc" | "desc" = "asc"): Query {
-    const query = new Query(this.client, this.collectionPath, {
-      ...this._queryConstraints,
-    });
+    const query = new Query(
+      this.client,
+      this.collectionPath,
+      {
+        ...this._queryConstraints,
+      },
+      this.allDescendants
+    );
     query._queryConstraints.orderBy = fieldPath;
     query._queryConstraints.orderDirection =
       directionStr === "asc" ? "ASCENDING" : "DESCENDING";
@@ -884,9 +955,14 @@ export class Query {
    * @returns Queryインスタンス
    */
   limit(limit: number): Query {
-    const query = new Query(this.client, this.collectionPath, {
-      ...this._queryConstraints,
-    });
+    const query = new Query(
+      this.client,
+      this.collectionPath,
+      {
+        ...this._queryConstraints,
+      },
+      this.allDescendants
+    );
     query._queryConstraints.limit = limit;
     return query;
   }
@@ -897,9 +973,14 @@ export class Query {
    * @returns Queryインスタンス
    */
   offset(offset: number): Query {
-    const query = new Query(this.client, this.collectionPath, {
-      ...this._queryConstraints,
-    });
+    const query = new Query(
+      this.client,
+      this.collectionPath,
+      {
+        ...this._queryConstraints,
+      },
+      this.allDescendants
+    );
     query._queryConstraints.offset = offset;
     return query;
   }
@@ -911,7 +992,8 @@ export class Query {
   async get(): Promise<QuerySnapshot> {
     const results = await this.client.query(
       this.collectionPath,
-      this._queryConstraints
+      this._queryConstraints,
+      this.allDescendants
     );
     return new QuerySnapshot(results);
   }
