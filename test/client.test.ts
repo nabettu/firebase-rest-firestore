@@ -122,7 +122,6 @@ describe("Firebase Rest Firestore", () => {
     // 更新テスト
     const updateData = {
       name: "更新後のアイテム",
-      value: 456,
       active: false,
     };
 
@@ -135,13 +134,13 @@ describe("Firebase Rest Firestore", () => {
     expect(updatedDoc).toBeDefined();
     expect(updatedDoc.id).toBe(createdDoc.id);
     expect(updatedDoc.name).toBe(updateData.name);
-    expect(updatedDoc.value).toBe(updateData.value);
+    expect(updatedDoc.value).toBe(testData.value);
     expect(updatedDoc.active).toBe(updateData.active);
 
     // 更新確認テスト
     const fetchedUpdatedDoc = await client.get(testCollection, createdDoc.id);
     expect(fetchedUpdatedDoc?.name).toBe(updateData.name);
-    expect(fetchedUpdatedDoc?.value).toBe(updateData.value);
+    expect(fetchedUpdatedDoc?.value).toBe(testData.value);
     expect(fetchedUpdatedDoc?.active).toBe(updateData.active);
 
     // 削除テスト

@@ -202,6 +202,13 @@ export class FirestoreClient {
       collectionName,
       this.config.databaseId
     )}/${documentId}`;
+
+    // 既存のドキュメントを取得してからマージする
+    const existingDoc = await this.get(collectionName, documentId);
+    if (existingDoc) {
+      data = { ...existingDoc, ...data };
+    }
+
     const firestoreData = convertToFirestoreDocument(data);
 
     const token = await this.getToken();
