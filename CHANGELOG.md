@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/nabettu/firebase-rest-firestore/compare/v1.1.2...v1.2.0) (2025-03-25)
+
+
+### Features
+
+* ネストしたフィールドの更新機能を追加し、関連するテストを実装 ([aeb4407](https://github.com/nabettu/firebase-rest-firestore/commit/aeb4407913fce8e2029329eda694bc6745156ddb))
+
 ## [1.1.2](https://github.com/nabettu/firebase-rest-firestore/compare/v1.1.1...v1.1.2) (2025-03-25)
 
 
