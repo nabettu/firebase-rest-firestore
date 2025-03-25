@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/nabettu/firebase-rest-firestore/compare/v1.1.0...v1.1.1) (2025-03-25)
+
+
+### Bug Fixes
+
+* FirestoreクライアントにデータベースIDのサポートを追加し、関連するURL生成を修正 ([10b4aed](https://github.com/nabettu/firebase-rest-firestore/commit/10b4aedf451f7beff2e3341c583accc1714f9e3c))
+
 # [1.1.0](https://github.com/nabettu/firebase-rest-firestore/compare/v1.0.0...v1.1.0) (2025-03-21)
 
 
