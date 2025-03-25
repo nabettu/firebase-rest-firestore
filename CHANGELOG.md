@@ -1,3 +1,10 @@
+## [1.1.2](https://github.com/nabettu/firebase-rest-firestore/compare/v1.1.1...v1.1.2) (2025-03-25)
+
+
+### Bug Fixes
+
+* 既存のドキュメントを取得してからマージする機能を追加し、テストを修正 ([d68a11c](https://github.com/nabettu/firebase-rest-firestore/commit/d68a11c9a515c990124164431cb26ab3d369bb2d))
+
 ## [1.1.1](https://github.com/nabettu/firebase-rest-firestore/compare/v1.1.0...v1.1.1) (2025-03-25)
 
 
