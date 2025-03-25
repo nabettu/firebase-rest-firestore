@@ -206,7 +206,52 @@ export class FirestoreClient {
     // 既存のドキュメントを取得してからマージする
     const existingDoc = await this.get(collectionName, documentId);
     if (existingDoc) {
-      data = { ...existingDoc, ...data };
+      // ネストしたフィールドの対応
+      // data内にドット記法のキーがあるかチェック (例: "favorites.color")
+      const updateData = { ...data };
+      const dotNotationKeys = Object.keys(data).filter(key =>
+        key.includes(".")
+      );
+
+      if (dotNotationKeys.length > 0) {
+        // スプレッド演算子でコピーして元のオブジェクトを変更しないようにする
+        const result = { ...existingDoc };
+
+        // 通常のキーを先に適用
+        Object.keys(data)
+          .filter(key => !key.includes("."))
+          .forEach(key => {
+            result[key] = data[key];
+          });
+
+        // ドット記法のキーを処理
+        dotNotationKeys.forEach(path => {
+          const parts = path.split(".");
+          let current = result;
+
+          // 最後のパーツ以外をたどってネストしたオブジェクトに到達
+          for (let i = 0; i < parts.length - 1; i++) {
+            const part = parts[i];
+            // パスが存在しない場合は新しいオブジェクトを作成
+            if (!current[part] || typeof current[part] !== "object") {
+              current[part] = {};
+            }
+            current = current[part];
+          }
+
+          // 最後のパーツに値を設定
+          const lastPart = parts[parts.length - 1];
+          current[lastPart] = data[path];
+
+          // 元のデータからドット記法のキーを削除
+          delete updateData[path];
+        });
+
+        data = result;
+      } else {
+        // 通常のマージ
+        data = { ...existingDoc, ...data };
+      }
     }
 
     const firestoreData = convertToFirestoreDocument(data);

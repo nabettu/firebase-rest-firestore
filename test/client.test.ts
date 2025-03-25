@@ -433,6 +433,94 @@ describe("Firebase Rest Firestore", () => {
     );
   });
 
+  // ネストしたオブジェクトのフィールド更新テスト
+  it("ドット記法でネストしたオブジェクトのフィールドを更新できること", async () => {
+    // ネストしたオブジェクトを含むテストデータの作成
+    const testData = {
+      name: "テストユーザー",
+      profile: {
+        age: 30,
+        job: "エンジニア",
+        address: {
+          prefecture: "東京",
+          city: "新宿区",
+        },
+      },
+      favorites: {
+        food: "ラーメン",
+        color: "青",
+        sports: "サッカー",
+      },
+    };
+
+    // ドキュメント作成
+    const createdDoc = await client.add(testCollection, testData);
+    createdIds.push({ collection: testCollection, id: createdDoc.id });
+    expect(createdDoc).toBeDefined();
+    expect(createdDoc.profile.age).toBe(30);
+    expect(createdDoc.favorites.color).toBe("青");
+
+    // ネストしたフィールドの更新（ドット記法）
+    const updateData = {
+      "profile.age": 31,
+      "favorites.color": "赤",
+      "profile.address.city": "渋谷区",
+    };
+
+    const updatedDoc = await client.update(
+      testCollection,
+      createdDoc.id,
+      updateData
+    );
+
+    // 更新結果の検証
+    expect(updatedDoc).toBeDefined();
+    expect(updatedDoc.profile.age).toBe(31);
+    expect(updatedDoc.favorites.color).toBe("赤");
+    expect(updatedDoc.profile.address.city).toBe("渋谷区");
+
+    // 更新されていないフィールドが保持されていることを確認
+    expect(updatedDoc.name).toBe("テストユーザー");
+    expect(updatedDoc.profile.job).toBe("エンジニア");
+    expect(updatedDoc.profile.address.prefecture).toBe("東京");
+    expect(updatedDoc.favorites.food).toBe("ラーメン");
+    expect(updatedDoc.favorites.sports).toBe("サッカー");
+
+    // 存在しないネストパスへの更新テスト
+    const newNestedData = {
+      "settings.theme": "ダーク",
+      "profile.skills": ["JavaScript", "TypeScript"],
+    };
+
+    const newUpdatedDoc = await client.update(
+      testCollection,
+      createdDoc.id,
+      newNestedData
+    );
+
+    // 新しいネストフィールドが作成されていることを確認
+    expect(newUpdatedDoc.settings.theme).toBe("ダーク");
+    expect(newUpdatedDoc.profile.skills).toEqual(["JavaScript", "TypeScript"]);
+
+    // 既存のデータも保持されていることを確認
+    expect(newUpdatedDoc.profile.age).toBe(31);
+    expect(newUpdatedDoc.favorites.color).toBe("赤");
+
+    // DocumentReference APIを使った更新のテスト
+    const docRef = client.collection(testCollection).doc(createdDoc.id);
+    await docRef.update({
+      "favorites.color": "緑",
+      "profile.address.prefecture": "大阪",
+    });
+
+    // 更新結果の検証
+    const finalDoc = await docRef.get();
+    const finalData = finalDoc.data();
+    expect(finalData?.favorites.color).toBe("緑");
+    expect(finalData?.profile.address.prefecture).toBe("大阪");
+    expect(finalData?.profile.address.city).toBe("渋谷区");
+  });
+
   // コレクショングループのテスト
   it("コレクショングループでの横断的なクエリができること", async () => {
     // 親コレクション1
