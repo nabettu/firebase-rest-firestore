@@ -121,7 +121,11 @@ export class FirestoreClient {
     // 操作前に設定をチェック
     this.checkConfig();
 
-    const url = getFirestoreBasePath(this.config.projectId, collectionName);
+    const url = getFirestoreBasePath(
+      this.config.projectId,
+      collectionName,
+      this.config.databaseId
+    );
     const firestoreData = convertToFirestoreDocument(data);
 
     const token = await this.getToken();
@@ -154,7 +158,8 @@ export class FirestoreClient {
 
     const url = `${getFirestoreBasePath(
       this.config.projectId,
-      collectionName
+      collectionName,
+      this.config.databaseId
     )}/${documentId}`;
 
     const token = await this.getToken();
@@ -194,7 +199,8 @@ export class FirestoreClient {
 
     const url = `${getFirestoreBasePath(
       this.config.projectId,
-      collectionName
+      collectionName,
+      this.config.databaseId
     )}/${documentId}`;
     const firestoreData = convertToFirestoreDocument(data);
 
@@ -228,7 +234,8 @@ export class FirestoreClient {
 
     const url = `${getFirestoreBasePath(
       this.config.projectId,
-      collectionName
+      collectionName,
+      this.config.databaseId
     )}/${documentId}`;
 
     const token = await this.getToken();
@@ -266,7 +273,9 @@ export class FirestoreClient {
     // e.g) パス形式: collectionPath = "/users/123/items" の場合は、collectionPaths = ["users", "123", "items"], collectionName = "items", basePath += "/users/123"
     // e.g) 単一形式: collectionPath = "items" の場合は、collectionPaths = ["items"], collectionName = "items", basePath += ""
     const collectionPaths = collectionPath.split("/");
-    let basePath = `https://firestore.googleapis.com/v1/projects/${this.config.projectId}/databases/(default)/documents`;
+    let basePath = `https://firestore.googleapis.com/v1/projects/${
+      this.config.projectId
+    }/databases/${this.config.databaseId || "(default)"}/documents`;
     let collectionName = collectionPath;
     if (collectionPaths.length > 1) {
       basePath = `${basePath}/${collectionPaths.slice(0, -1).join("/")}`;
@@ -1103,6 +1112,22 @@ export class WriteResult {
  * 新しいFirestoreクライアントインスタンスを作成
  * @param config Firestore設定オブジェクト
  * @returns FirestoreClientインスタンス
+ *
+ * @example
+ * // デフォルトデータベースに接続
+ * const db = createFirestoreClient({
+ *   projectId: 'your-project-id',
+ *   privateKey: 'your-private-key',
+ *   clientEmail: 'your-client-email'
+ * });
+ *
+ * // 異なる名前のデータベースに接続
+ * const customDb = createFirestoreClient({
+ *   projectId: 'your-project-id',
+ *   privateKey: 'your-private-key',
+ *   clientEmail: 'your-client-email',
+ *   databaseId: 'your-database-id'
+ * });
  */
 export function createFirestoreClient(config: FirestoreConfig) {
   // 秘密鍵のフォーマットを確認

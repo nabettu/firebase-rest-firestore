@@ -5,6 +5,7 @@ export interface FirestoreConfig {
   projectId: string;
   privateKey: string;
   clientEmail: string;
+  databaseId?: string;
 }
 
 /**
