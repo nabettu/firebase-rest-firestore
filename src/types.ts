@@ -6,6 +6,7 @@ export interface FirestoreConfig {
   privateKey: string;
   clientEmail: string;
   databaseId?: string;
+  debug?: boolean;
 }
 
 /**

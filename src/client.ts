@@ -16,6 +16,7 @@ export class FirestoreClient {
   private tokenExpiry: number = 0;
   private config: FirestoreConfig;
   private configChecked: boolean = false;
+  private debug: boolean = false;
 
   /**
    * コンストラクタ
@@ -23,6 +24,7 @@ export class FirestoreClient {
    */
   constructor(config: FirestoreConfig) {
     this.config = config;
+    this.debug = !!config.debug;
     // ビルド時にはチェックを行わない
     // 実際の操作時に遅延チェックを行う
   }
@@ -402,7 +404,9 @@ export class FirestoreClient {
       structuredQuery: structuredQuery,
     };
 
-    console.log("クエリリクエスト:", JSON.stringify(requestBody, null, 2));
+    if (this.debug) {
+      console.log("Query request:", JSON.stringify(requestBody, null, 2));
+    }
 
     try {
       const response = await fetch(url, {
@@ -415,7 +419,10 @@ export class FirestoreClient {
       });
 
       const responseText = await response.text();
-      console.log("API レスポンス:", responseText);
+      
+      if (this.debug) {
+        console.log("API response:", responseText);
+      }
 
       if (!response.ok) {
         throw new Error(
@@ -428,17 +435,23 @@ export class FirestoreClient {
         readTime?: string;
       }>;
 
-      console.log("変換前の結果:", results);
+      if (this.debug) {
+        console.log("Results before conversion:", results);
+      }
 
       const convertedResults = results
         .filter(item => item.document)
         .map(item => convertFromFirestoreDocument(item.document!));
 
-      console.log("変換後の結果:", convertedResults);
+      if (this.debug) {
+        console.log("Results after conversion:", convertedResults);
+      }
 
       return convertedResults;
     } catch (error) {
-      console.error("クエリ実行エラー:", error);
+      if (this.debug) {
+        console.error("Query execution error:", error);
+      }
       throw error;
     }
   }
