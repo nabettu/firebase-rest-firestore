@@ -19,7 +19,11 @@
     "watch:cjs": "tsc -p tsconfig.cjs.json --watch",
     "watch:types": "tsc -p tsconfig.json --emitDeclarationOnly --declarationDir dist/types --watch",
     "prepublishOnly": "npm run build",
-    "test": "vitest"
+    "setup:local:env": "cp .env.local.example .env && echo 'Created .env file from local example.'",
+    "emulator:start": "cd test/emulator && firebase emulators:start -P demo-test-project",
+    "emulator:stop": "npx kill-port -y 4089 8089 9089",
+    "test": "vitest",
+    "test:emulator": "bash test/scripts/test-with-emulator.sh"
   },
   "keywords": [
     "firebase",

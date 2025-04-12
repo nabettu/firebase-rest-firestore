@@ -7,6 +7,9 @@ export interface FirestoreConfig {
   clientEmail: string;
   databaseId?: string;
   debug?: boolean;
+  useEmulator?: boolean;
+  emulatorHost?: string;
+  emulatorPort?: number;
 }
 
 /**

@@ -1,35 +1,60 @@
 import { FirestoreConfig } from "../src/types";
 import { formatPrivateKey } from "../src/utils/config";
+import dotenv from "dotenv";
+
+// Load environment variables from .env file
+dotenv.config();
 
 /**
- * 環境変数から設定を読み込む
- * @returns Firestore設定オブジェクト
+ * Load settings from environment variables
+ * @returns Firestore configuration object
  */
 export function loadConfig(): FirestoreConfig {
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+  
+  // Load emulator settings from environment variables
+  const useEmulator = process.env.FIRESTORE_EMULATOR === "true";
+  const emulatorHost = process.env.FIRESTORE_EMULATOR_HOST || "localhost";
+  const emulatorPort = parseInt(process.env.FIRESTORE_EMULATOR_PORT || "8080");
 
-  if (!projectId || !clientEmail || !privateKey) {
+  // Project ID is always required, but email and key only required for non-emulator mode
+  if (!projectId) {
     throw new Error(
-      "必要な環境変数が設定されていません。.envファイルを確認してください。"
+      "FIREBASE_PROJECT_ID environment variable is not set. Please check the .env file."
     );
   }
 
-  // 秘密鍵に含まれる可能性のある改行エスケープシーケンスを実際の改行に変換
-  privateKey = formatPrivateKey(privateKey);
+  if (!useEmulator && (!clientEmail || !privateKey)) {
+    throw new Error(
+      "FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY are required when not using the emulator. Please check the .env file."
+    );
+  }
+
+  // Only format the private key if it exists
+  if (privateKey) {
+    privateKey = formatPrivateKey(privateKey);
+  }
+  
+  // Debug mode settings
+  const debug = process.env.DEBUG_TESTS === "true";
 
   return {
     projectId,
-    clientEmail,
-    privateKey,
+    clientEmail: clientEmail || "",
+    privateKey: privateKey || "",
+    useEmulator,
+    emulatorHost,
+    emulatorPort,
+    debug
   };
 }
 
 /**
- * テスト用のコレクション名を生成
- * @param prefix コレクション名のプレフィックス
- * @returns ユニークなコレクション名
+ * Generate collection name for testing
+ * @param prefix Collection name prefix
+ * @returns Unique collection name
  */
 export function getTestCollectionName(prefix: string = "test"): string {
   const timestamp = Date.now();
@@ -38,10 +63,10 @@ export function getTestCollectionName(prefix: string = "test"): string {
 }
 
 /**
- * テストデータのクリーンアップ処理
+ * Cleanup process for test data
  * @param client FirestoreClient
- * @param collectionName コレクション名
- * @param docIds ドキュメントIDの配列
+ * @param collectionName Collection name
+ * @param docIds Array of document IDs
  */
 export async function cleanupTestData(
   client: any,

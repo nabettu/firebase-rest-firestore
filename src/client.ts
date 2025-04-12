@@ -5,11 +5,12 @@ import {
   convertToFirestoreDocument,
   convertToFirestoreValue,
 } from "./utils/converter";
-import { getFirestoreBasePath } from "./utils/path";
+import { getFirestoreBasePath, getFirestoreCollectionPath } from "./utils/path";
 import { formatPrivateKey } from "./utils/config";
+import { FirestorePath, createFirestorePath } from "./utils/path";
 
 /**
- * Firestoreクライアントクラス
+ * Firestore client class
  */
 export class FirestoreClient {
   private token: string | null = null;
@@ -17,20 +18,25 @@ export class FirestoreClient {
   private config: FirestoreConfig;
   private configChecked: boolean = false;
   private debug: boolean = false;
+  private pathUtil: FirestorePath;
 
   /**
-   * コンストラクタ
-   * @param config Firestore設定オブジェクト
+   * Constructor
+   * @param config Firestore configuration object
    */
   constructor(config: FirestoreConfig) {
     this.config = config;
+    this.pathUtil = createFirestorePath(config, config.debug || false);
     this.debug = !!config.debug;
-    // ビルド時にはチェックを行わない
-    // 実際の操作時に遅延チェックを行う
+    
+    // Log configuration if debug is enabled
+    if (this.debug) {
+      console.log("Firestore client initialized with config:", JSON.stringify(this.config, null, 2));
+    }
   }
 
   /**
-   * 設定パラメータをチェック
+   * Check configuration parameters
    * @private
    */
   private checkConfig() {
@@ -39,11 +45,12 @@ export class FirestoreClient {
     }
 
     // 必須パラメータのチェック
-    const requiredParams: Array<keyof FirestoreConfig> = [
-      "projectId",
-      "privateKey",
-      "clientEmail",
-    ];
+    const requiredParams: Array<keyof FirestoreConfig> = ["projectId"];
+    
+    // Only require auth parameters when not using emulator
+    if (!this.config.useEmulator) {
+      requiredParams.push("privateKey", "clientEmail");
+    }
 
     const missingParams = requiredParams.filter(param => !this.config[param]);
     if (missingParams.length > 0) {
@@ -58,15 +65,26 @@ export class FirestoreClient {
   }
 
   /**
-   * 認証トークンを取得（キャッシュあり）
+   * Get authentication token (with caching)
    */
   private async getToken(): Promise<string> {
-    // 操作前に設定をチェック
+    // Check settings before operation
     this.checkConfig();
+
+    // In emulator mode, we don't need a token
+    if (this.config.useEmulator) {
+      if (this.debug) {
+        console.log("Emulator mode: skipping token generation");
+      }
+      return "emulator-fake-token";
+    }
 
     const now = Date.now();
     // トークンが期限切れか未取得の場合は新しく取得
     if (!this.token || now >= this.tokenExpiry) {
+      if (this.debug) {
+        console.log("Generating new auth token");
+      }
       this.token = await getFirestoreToken(this.config);
       // 50分後に期限切れとする（実際は1時間）
       this.tokenExpiry = now + 50 * 60 * 1000;
@@ -75,22 +93,45 @@ export class FirestoreClient {
   }
 
   /**
-   * コレクションリファレンスを取得
-   * @param path コレクションパス
-   * @returns CollectionReferenceインスタンス
+   * Prepare request headers
+   * @param additionalHeaders Additional headers
+   * @returns Prepared headers object
+   * @private
+   */
+  private async prepareHeaders(additionalHeaders: Record<string, string> = {}): Promise<Record<string, string>> {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...additionalHeaders
+    };
+    
+    // Only add auth token for production environment
+    if (!this.config.useEmulator) {
+      const token = await this.getToken();
+      headers["Authorization"] = `Bearer ${token}`;
+    } else if (this.debug) {
+      console.log("Using emulator mode, skipping authorization header");
+    }
+    
+    return headers;
+  }
+
+  /**
+   * Get collection reference
+   * @param path Collection path
+   * @returns CollectionReference instance
    */
   collection(path: string): CollectionReference {
-    // 設定チェックは実際の操作時に行われる
+    // Configuration check is performed at the time of actual operation
     return new CollectionReference(this, path);
   }
 
   /**
-   * ドキュメントリファレンスを取得
-   * @param path ドキュメントパス
-   * @returns DocumentReferenceインスタンス
+   * Get document reference
+   * @param path Document path
+   * @returns DocumentReference instance
    */
   doc(path: string): DocumentReference {
-    // 設定チェックは実際の操作時に行われる
+    // Configuration check is performed at the time of actual operation
     const parts = path.split("/");
     if (parts.length % 2 === 0) {
       throw new Error(
@@ -105,43 +146,53 @@ export class FirestoreClient {
   }
 
   /**
-   * コレクショングループリファレンスを取得
-   * @param path コレクショングループのID
-   * @returns CollectionGroupインスタンス
+   * Get collection group reference
+   * @param path Collection group ID
+   * @returns CollectionGroup instance
    */
   collectionGroup(path: string): CollectionGroup {
     return new CollectionGroup(this, path);
   }
 
   /**
-   * Firestoreにドキュメントを追加
-   * @param collectionName コレクション名
-   * @param data 追加するデータ
-   * @returns 追加されたドキュメント
+   * Add document to Firestore
+   * @param collectionName Collection name
+   * @param data Data to add
+   * @returns Added document
    */
   async add(collectionName: string, data: Record<string, any>) {
-    // 操作前に設定をチェック
+    // Check settings before operation
     this.checkConfig();
 
-    const url = getFirestoreBasePath(
-      this.config.projectId,
-      collectionName,
-      this.config.databaseId
-    );
+    if (this.debug) {
+      console.log(`Adding document to collection: ${collectionName}`, data);
+    }
+
+    const url = this.pathUtil.getCollectionPath(collectionName);
     const firestoreData = convertToFirestoreDocument(data);
 
-    const token = await this.getToken();
+    if (this.debug) {
+      console.log(`Making request to: ${url}`, firestoreData);
+    }
+
+    const headers = await this.prepareHeaders();
+    
     const response = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify(firestoreData),
     });
 
+    if (this.debug) {
+      console.log(`Response status: ${response.status}`);
+    }
+
     if (!response.ok) {
-      throw new Error(`Firestore API error: ${response.statusText}`);
+      const errorText = await response.text();
+      if (this.debug) {
+        console.error(`Error response: ${errorText}`);
+      }
+      throw new Error(`Firestore API error: ${response.statusText || response.status} - ${errorText}`);
     }
 
     const result = (await response.json()) as FirestoreResponse;
@@ -149,67 +200,90 @@ export class FirestoreClient {
   }
 
   /**
-   * ドキュメントを取得
-   * @param collectionName コレクション名
-   * @param documentId ドキュメントID
-   * @returns 取得したドキュメント（存在しない場合はnull）
+   * Get document
+   * @param collectionName Collection name
+   * @param documentId Document ID
+   * @returns Retrieved document (null if it doesn't exist)
    */
   async get(collectionName: string, documentId: string) {
-    // 操作前に設定をチェック
+    // Check settings before operation
     this.checkConfig();
 
-    const url = `${getFirestoreBasePath(
-      this.config.projectId,
-      collectionName,
-      this.config.databaseId
-    )}/${documentId}`;
+    if (this.debug) {
+      console.log(`Getting document from collection: ${collectionName}, documentId: ${documentId}`);
+    }
+    
+    const url = this.pathUtil.getDocumentPath(collectionName, documentId);
 
-    const token = await this.getToken();
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (response.status === 404) {
-      return null;
+    if (this.debug) {
+      console.log(`Making request to: ${url}`);
     }
 
-    if (!response.ok) {
-      throw new Error(`Firestore API error: ${response.statusText}`);
-    }
+    const headers = await this.prepareHeaders();
 
-    const result = (await response.json()) as FirestoreResponse;
-    return convertFromFirestoreDocument(result);
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        headers
+      });
+
+      if (this.debug) {
+        console.log(`Response status: ${response.status}`);
+      }
+      
+      // Capture response text for debugging
+      const responseText = await response.text();
+      if (this.debug) {
+        console.log(`Response text: ${responseText.substring(0, 200)}${responseText.length > 200 ? '...' : ''}`);
+      }
+      
+      if (response.status === 404) {
+        return null;
+      }
+
+      if (!response.ok) {
+        throw new Error(`Firestore API error: ${response.statusText || response.status} - ${responseText}`);
+      }
+
+      // Parse the response text
+      const result = JSON.parse(responseText) as FirestoreResponse;
+      return convertFromFirestoreDocument(result);
+    } catch (error) {
+      console.error("Error in get method:", error);
+      throw error;
+    }
   }
 
   /**
-   * ドキュメントを更新
-   * @param collectionName コレクション名
-   * @param documentId ドキュメントID
-   * @param data 更新するデータ
-   * @returns 更新されたドキュメント
+   * Update document
+   * @param collectionName Collection name
+   * @param documentId Document ID
+   * @param data Data to update
+   * @returns Updated document
    */
   async update(
     collectionName: string,
     documentId: string,
     data: Record<string, any>
   ) {
-    // 操作前に設定をチェック
+    // Check settings before operation
     this.checkConfig();
 
-    const url = `${getFirestoreBasePath(
-      this.config.projectId,
-      collectionName,
-      this.config.databaseId
-    )}/${documentId}`;
+    if (this.debug) {
+      console.log(`Updating document in collection: ${collectionName}, documentId: ${documentId}`, data);
+    }
 
-    // 既存のドキュメントを取得してからマージする
+    const url = this.pathUtil.getDocumentPath(collectionName, documentId);
+
+    if (this.debug) {
+      console.log(`Making request to: ${url}`);
+    }
+
+    // Get existing document and merge
     const existingDoc = await this.get(collectionName, documentId);
     if (existingDoc) {
-      // ネストしたフィールドの対応
-      // data内にドット記法のキーがあるかチェック (例: "favorites.color")
+      // Check for nested fields
+      // Check if data contains dot notation keys (e.g., "favorites.color")
       const updateData = { ...data };
       const dotNotationKeys = Object.keys(data).filter(key =>
         key.includes(".")
@@ -258,18 +332,23 @@ export class FirestoreClient {
 
     const firestoreData = convertToFirestoreDocument(data);
 
-    const token = await this.getToken();
+    const headers = await this.prepareHeaders();
     const response = await fetch(url, {
       method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify(firestoreData),
     });
 
+    if (this.debug) {
+      console.log(`Response status: ${response.status}`);
+    }
+
     if (!response.ok) {
-      throw new Error(`Firestore API error: ${response.statusText}`);
+      const errorText = await response.text();
+      if (this.debug) {
+        console.error(`Error response: ${errorText}`);
+      }
+      throw new Error(`Firestore API error: ${response.statusText || response.status} - ${errorText}`);
     }
 
     const result = (await response.json()) as FirestoreResponse;
@@ -277,188 +356,213 @@ export class FirestoreClient {
   }
 
   /**
-   * ドキュメントを削除
-   * @param collectionName コレクション名
-   * @param documentId ドキュメントID
-   * @returns 削除成功時はtrue
+   * Delete document
+   * @param collectionName Collection name
+   * @param documentId Document ID
+   * @returns true if deletion successful
    */
   async delete(collectionName: string, documentId: string) {
-    // 操作前に設定をチェック
+    // Check settings before operation
     this.checkConfig();
 
-    const url = `${getFirestoreBasePath(
-      this.config.projectId,
-      collectionName,
-      this.config.databaseId
-    )}/${documentId}`;
+    if (this.debug) {
+      console.log(`Deleting document from collection: ${collectionName}, documentId: ${documentId}`);
+    }
 
-    const token = await this.getToken();
+    const url = this.pathUtil.getDocumentPath(collectionName, documentId);
+
+    if (this.debug) {
+      console.log(`Making request to: ${url}`);
+    }
+
+    // Different header handling for emulator
+    const headers: Record<string, string> = {};
+    
+    // Only add auth token for production environment
+    if (!this.config.useEmulator) {
+      const token = await this.getToken();
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
     const response = await fetch(url, {
       method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers,
     });
 
+    if (this.debug) {
+      console.log(`Response status: ${response.status}`);
+    }
+
     if (!response.ok) {
-      throw new Error(`Firestore API error: ${response.statusText}`);
+      const errorText = await response.text();
+      if (this.debug) {
+        console.error(`Error response: ${errorText}`);
+      }
+      throw new Error(`Firestore API error: ${response.statusText || response.status} - ${errorText}`);
     }
 
     return true;
   }
 
   /**
-   * コレクションのドキュメントを検索
-   * @param collectionPath コレクションパス
-   * @param options クエリオプション
-   * @param allDescendants 子孫コレクションを含むかどうか
-   * @returns 検索結果のドキュメント配列
+   * Query documents in a collection
+   * @param collectionPath Collection path
+   * @param options Query options
+   * @param allDescendants Whether to include descendant collections
+   * @returns Array of documents matching the query
    */
   async query(
     collectionPath: string,
     options: QueryOptions = {},
-    allDescendants: boolean
+    allDescendants: boolean = false
   ) {
-    // 操作前に設定をチェック
+    // Check settings before operation
     this.checkConfig();
-
-    // :runQueryはコレクション単位ではなく、ドキュメントルート単位で実行
-    // コレクション名パス形式の場合は、endpointをドキュメントルートに置き換える。collectionNameはコレクションIDにする
-    // e.g) パス形式: collectionPath = "/users/123/items" の場合は、collectionPaths = ["users", "123", "items"], collectionName = "items", basePath += "/users/123"
-    // e.g) 単一形式: collectionPath = "items" の場合は、collectionPaths = ["items"], collectionName = "items", basePath += ""
-    const collectionPaths = collectionPath.split("/");
-    let basePath = `https://firestore.googleapis.com/v1/projects/${
-      this.config.projectId
-    }/databases/${this.config.databaseId || "(default)"}/documents`;
-    let collectionName = collectionPath;
-    if (collectionPaths.length > 1) {
-      basePath = `${basePath}/${collectionPaths.slice(0, -1).join("/")}`;
-      collectionName = collectionPaths[collectionPaths.length - 1];
-    }
-    const url = `${basePath}:runQuery`;
-
-    // クエリ構築
-    //allDescendants: falseの場合は直下のcollectionを参照。trueの場合は子孫コレクションも参照
-    const structuredQuery: any = {
-      from: [
-        {
-          collectionId: collectionName,
-          allDescendants,
-        },
-      ],
-    };
-
-    // フィルター条件
-    if (options.where && options.where.length > 0) {
-      // シンプルなケース: 1つの条件の場合
-      if (options.where.length === 1) {
-        const condition = options.where[0];
-        structuredQuery.where = {
-          fieldFilter: {
-            field: { fieldPath: condition.field },
-            op: condition.op,
-            value: convertToFirestoreValue(condition.value),
-          },
-        };
-      } else {
-        // 複数条件の場合
-        structuredQuery.where = {
-          compositeFilter: {
-            op: "AND",
-            filters: options.where.map(condition => ({
-              fieldFilter: {
-                field: { fieldPath: condition.field },
-                op: condition.op,
-                value: convertToFirestoreValue(condition.value),
-              },
-            })),
-          },
-        };
-      }
-    }
-
-    // 並べ替え
-    if (options.orderBy) {
-      structuredQuery.orderBy = [
-        {
-          field: { fieldPath: options.orderBy },
-          direction: options.orderDirection || "ASCENDING",
-        },
-      ];
-    }
-
-    // 制限
-    if (options.limit) {
-      structuredQuery.limit = options.limit;
-    }
-
-    // オフセット
-    if (options.offset) {
-      structuredQuery.offset = options.offset;
-    }
-
-    const token = await this.getToken();
-
-    // 修正: structuredQueryをラップしたリクエストボディを作成
-    const requestBody = {
-      structuredQuery: structuredQuery,
-    };
-
-    if (this.debug) {
-      console.log("Query request:", JSON.stringify(requestBody, null, 2));
-    }
-
+    
     try {
-      const response = await fetch(url, {
+      // Parse the collection path
+      const segments = collectionPath.split('/');
+      const collectionId = segments[segments.length - 1];
+      
+      // Get the proper runQuery URL from our path helper
+      const queryUrl = this.pathUtil.getRunQueryPath(collectionPath);
+      
+      if (this.debug) {
+        console.log(`Executing query on collection: ${collectionPath}`);
+        console.log(`Using runQuery URL: ${queryUrl}`);
+      }
+      
+      // Create the structured query
+      const requestBody: any = {
+        structuredQuery: {
+          from: [{
+            collectionId,
+            allDescendants
+          }]
+        }
+      };
+      
+      // Add where filters if present
+      if (options.where && options.where.length > 0) {
+        // Map our operators to Firestore REST API operators
+        const opMap: Record<string, string> = {
+          "==": "EQUAL",
+          "!=": "NOT_EQUAL",
+          "<": "LESS_THAN",
+          "<=": "LESS_THAN_OR_EQUAL",
+          ">": "GREATER_THAN",
+          ">=": "GREATER_THAN_OR_EQUAL",
+          "array-contains": "ARRAY_CONTAINS",
+          "in": "IN",
+          "array-contains-any": "ARRAY_CONTAINS_ANY",
+          "not-in": "NOT_IN"
+        };
+        
+        // Single where clause
+        if (options.where.length === 1) {
+          const filter = options.where[0];
+          const firestoreOp = opMap[filter.op] || filter.op;
+          
+          requestBody.structuredQuery.where = {
+            fieldFilter: {
+              field: { fieldPath: filter.field },
+              op: firestoreOp,
+              value: convertToFirestoreValue(filter.value)
+            }
+          };
+        } 
+        // Multiple where clauses (AND)
+        else {
+          requestBody.structuredQuery.where = {
+            compositeFilter: {
+              op: "AND",
+              filters: options.where.map(filter => {
+                const firestoreOp = opMap[filter.op] || filter.op;
+                return {
+                  fieldFilter: {
+                    field: { fieldPath: filter.field },
+                    op: firestoreOp,
+                    value: convertToFirestoreValue(filter.value)
+                  }
+                };
+              })
+            }
+          };
+        }
+      }
+      
+      // Add order by if present
+      if (options.orderBy) {
+        requestBody.structuredQuery.orderBy = [{
+          field: { fieldPath: options.orderBy },
+          direction: options.orderDirection || "ASCENDING"
+        }];
+      }
+      
+      // Add limit if present
+      if (options.limit) {
+        requestBody.structuredQuery.limit = options.limit;
+      }
+      
+      // Add offset if present
+      if (options.offset) {
+        requestBody.structuredQuery.offset = options.offset;
+      }
+      
+      if (this.debug) {
+        console.log(`Request payload:`, JSON.stringify(requestBody, null, 2));
+      }
+      
+      // Use the existing prepareHeaders method for authentication consistency
+      const headers = await this.prepareHeaders();
+      
+      const response = await fetch(queryUrl, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(requestBody),
+        headers,
+        body: JSON.stringify(requestBody)
       });
-
+      
+      // Collect response for debugging
       const responseText = await response.text();
       
       if (this.debug) {
-        console.log("API response:", responseText);
+        console.log(`API Response:`, responseText);
       }
-
+      
       if (!response.ok) {
-        throw new Error(
-          `Firestore API error: ${response.statusText} - ${responseText}`
-        );
+        throw new Error(`Firestore API error: ${response.status} - ${responseText}`);
       }
-
-      const results = JSON.parse(responseText) as Array<{
-        document?: FirestoreResponse;
-        readTime?: string;
-      }>;
-
+      
+      // Parse the response
+      const results = JSON.parse(responseText);
+      
       if (this.debug) {
-        console.log("Results before conversion:", results);
+        console.log(`Results count: ${results?.length || 0}`);
       }
-
+      
+      // Process the results
+      if (!Array.isArray(results)) {
+        return [];
+      }
+      
       const convertedResults = results
         .filter(item => item.document)
-        .map(item => convertFromFirestoreDocument(item.document!));
-
+        .map(item => convertFromFirestoreDocument(item.document));
+      
       if (this.debug) {
-        console.log("Results after conversion:", convertedResults);
+        console.log(`Converted results:`, convertedResults);
       }
-
+      
       return convertedResults;
     } catch (error) {
-      if (this.debug) {
-        console.error("Query execution error:", error);
-      }
+      console.error("Query execution error:", error);
       throw error;
     }
   }
 }
 
 /**
- * コレクションリファレンスクラス
+ * Collection reference class
  */
 export class CollectionReference {
   private client: FirestoreClient;
@@ -480,16 +584,16 @@ export class CollectionReference {
   }
 
   /**
-   * すべての子孫コレクションを含むかどうか
+   * Whether to include all descendant collections
    */
   get allDescendants(): boolean {
     return false;
   }
 
   /**
-   * ドキュメントリファレンスを取得
-   * @param documentPath ドキュメントID（省略時は自動生成）
-   * @returns DocumentReferenceインスタンス
+   * Get document reference
+   * @param documentPath Document ID (auto-generated if omitted)
+   * @returns DocumentReference instance
    */
   doc(documentPath?: string): DocumentReference {
     const docId = documentPath || this._generateId();
@@ -497,9 +601,9 @@ export class CollectionReference {
   }
 
   /**
-   * ドキュメントを追加（IDは自動生成）
-   * @param data ドキュメントデータ
-   * @returns 作成されたドキュメントのリファレンス
+   * Add document (ID is auto-generated)
+   * @param data Document data
+   * @returns Reference to the created document
    */
   async add(data: Record<string, any>): Promise<DocumentReference> {
     const result = await this.client.add(this.path, data);
@@ -508,11 +612,11 @@ export class CollectionReference {
   }
 
   /**
-   * フィルター条件を追加
-   * @param fieldPath フィールドパス
-   * @param opStr 演算子
-   * @param value 値
-   * @returns Queryインスタンス
+   * Add filter condition
+   * @param fieldPath Field path
+   * @param opStr Operator
+   * @param value Value
+   * @returns Query instance
    */
   where(fieldPath: string, opStr: string, value: any): Query {
     const query = new Query(
@@ -524,7 +628,7 @@ export class CollectionReference {
       this.allDescendants
     );
 
-    // 演算子の変換
+    // Operator conversion
     let firestoreOp: string;
     switch (opStr) {
       case "==":
@@ -571,10 +675,10 @@ export class CollectionReference {
   }
 
   /**
-   * 並べ替え条件を追加
-   * @param fieldPath フィールドパス
-   * @param directionStr 並べ替え方向（'asc'または'desc'）
-   * @returns Queryインスタンス
+   * Add sorting condition
+   * @param fieldPath Field path
+   * @param directionStr Sort direction ('asc' or 'desc')
+   * @returns Query instance
    */
   orderBy(fieldPath: string, directionStr: "asc" | "desc" = "asc"): Query {
     const query = new Query(
@@ -592,9 +696,9 @@ export class CollectionReference {
   }
 
   /**
-   * 取得件数の制限を設定
-   * @param limit 最大件数
-   * @returns Queryインスタンス
+   * Set limit on number of results
+   * @param limit Maximum number
+   * @returns Query instance
    */
   limit(limit: number): Query {
     const query = new Query(
@@ -610,9 +714,9 @@ export class CollectionReference {
   }
 
   /**
-   * スキップ件数を設定
-   * @param offset スキップ件数
-   * @returns Queryインスタンス
+   * Set number of documents to skip
+   * @param offset Number to skip
+   * @returns Query instance
    */
   offset(offset: number): Query {
     const query = new Query(
@@ -628,8 +732,8 @@ export class CollectionReference {
   }
 
   /**
-   * クエリを実行
-   * @returns QuerySnapshotインスタンス
+   * Execute query
+   * @returns QuerySnapshot instance
    */
   async get(): Promise<QuerySnapshot> {
     const results = await this.client.query(
@@ -641,11 +745,11 @@ export class CollectionReference {
   }
 
   /**
-   * ランダムなIDを生成
-   * @returns ランダムなID
+   * Generate random ID
+   * @returns Random ID
    */
   private _generateId(): string {
-    // 20文字のランダムなIDを生成
+    // Generate 20-character random ID
     const chars =
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     let id = "";
@@ -657,7 +761,7 @@ export class CollectionReference {
 }
 
 /**
- * ドキュメントリファレンスクラス
+ * Document reference class
  */
 export class DocumentReference {
   private client: FirestoreClient;
@@ -671,23 +775,23 @@ export class DocumentReference {
   }
 
   /**
-   * ドキュメントIDを取得
+   * Get document ID
    */
   get id(): string {
     return this.docId;
   }
 
   /**
-   * ドキュメントのパスを取得
+   * Get document path
    */
   get path(): string {
     return `${this.collectionPath}/${this.docId}`;
   }
 
   /**
-   * サブコレクションを取得
-   * @param collectionPath サブコレクション名
-   * @returns CollectionReferenceインスタンス
+   * Get subcollection
+   * @param collectionPath Subcollection name
+   * @returns CollectionReference instance
    */
   collection(collectionPath: string): CollectionReference {
     return new CollectionReference(
@@ -697,8 +801,8 @@ export class DocumentReference {
   }
 
   /**
-   * ドキュメントを取得
-   * @returns DocumentSnapshotインスタンス
+   * Get document
+   * @returns DocumentSnapshot instance
    */
   async get(): Promise<DocumentSnapshot> {
     const data = await this.client.get(this.collectionPath, this.docId);
@@ -706,24 +810,24 @@ export class DocumentReference {
   }
 
   /**
-   * ドキュメントを作成または上書き
-   * @param data ドキュメントデータ
-   * @param options オプション（mergeは現在サポートされていません）
-   * @returns WriteResultインスタンス
+   * Create or overwrite document
+   * @param data Document data
+   * @param options Options (merge is not currently supported)
+   * @returns WriteResult instance
    */
   async set(
     data: Record<string, any>,
     options?: { merge?: boolean }
   ): Promise<WriteResult> {
-    // 既存のドキュメントを取得
+    // Get existing document
     const existingDoc = await this.client.get(this.collectionPath, this.docId);
 
     if (existingDoc) {
-      // 既存のドキュメントがある場合は更新
+      // If existing document exists, update
       const mergedData = options?.merge ? { ...existingDoc, ...data } : data;
       await this.client.update(this.collectionPath, this.docId, mergedData);
     } else {
-      // 新規作成
+      // New creation
       const newData = { ...data, id: this.docId };
       await this.client.add(this.collectionPath, newData);
     }
@@ -732,9 +836,9 @@ export class DocumentReference {
   }
 
   /**
-   * ドキュメントを更新
-   * @param data 更新データ
-   * @returns WriteResultインスタンス
+   * Update document
+   * @param data Update data
+   * @returns WriteResult instance
    */
   async update(data: Record<string, any>): Promise<WriteResult> {
     await this.client.update(this.collectionPath, this.docId, data);
@@ -742,8 +846,8 @@ export class DocumentReference {
   }
 
   /**
-   * ドキュメントを削除
-   * @returns WriteResultインスタンス
+   * Delete document
+   * @returns WriteResult instance
    */
   async delete(): Promise<WriteResult> {
     await this.client.delete(this.collectionPath, this.docId);
@@ -752,7 +856,7 @@ export class DocumentReference {
 }
 
 /**
- * コレクショングループ
+ * Collection group
  */
 export class CollectionGroup {
   private client: FirestoreClient;
@@ -774,18 +878,18 @@ export class CollectionGroup {
   }
 
   /**
-   * すべての子孫コレクションを含むかどうか
+   * Whether to include all descendant collections
    */
   get allDescendants(): boolean {
     return true;
   }
 
   /**
-   * フィルター条件を追加
-   * @param fieldPath フィールドパス
-   * @param opStr 演算子
-   * @param value 値
-   * @returns Queryインスタンス
+   * Add filter condition
+   * @param fieldPath Field path
+   * @param opStr Operator
+   * @param value Value
+   * @returns Query instance
    */
   where(fieldPath: string, opStr: string, value: any): Query {
     const query = new Query(
@@ -797,7 +901,7 @@ export class CollectionGroup {
       this.allDescendants
     );
 
-    // 演算子の変換
+    // Operator conversion
     let firestoreOp: string;
     switch (opStr) {
       case "==":
@@ -844,10 +948,10 @@ export class CollectionGroup {
   }
 
   /**
-   * 並べ替え条件を追加
-   * @param fieldPath フィールドパス
-   * @param directionStr 並べ替え方向（'asc'または'desc'）
-   * @returns Queryインスタンス
+   * Add sorting condition
+   * @param fieldPath Field path
+   * @param directionStr Sort direction ('asc' or 'desc')
+   * @returns Query instance
    */
   orderBy(fieldPath: string, directionStr: "asc" | "desc" = "asc"): Query {
     const query = new Query(
@@ -865,9 +969,9 @@ export class CollectionGroup {
   }
 
   /**
-   * 取得件数の制限を設定
-   * @param limit 最大件数
-   * @returns Queryインスタンス
+   * Set limit on number of results
+   * @param limit Maximum number
+   * @returns Query instance
    */
   limit(limit: number): Query {
     const query = new Query(
@@ -883,9 +987,9 @@ export class CollectionGroup {
   }
 
   /**
-   * スキップ件数を設定
-   * @param offset スキップ件数
-   * @returns Queryインスタンス
+   * Set number of documents to skip
+   * @param offset Number to skip
+   * @returns Query instance
    */
   offset(offset: number): Query {
     const query = new Query(
@@ -901,8 +1005,8 @@ export class CollectionGroup {
   }
 
   /**
-   * クエリを実行
-   * @returns QuerySnapshotインスタンス
+   * Execute query
+   * @returns QuerySnapshot instance
    */
   async get(): Promise<QuerySnapshot> {
     const results = await this.client.query(
@@ -915,7 +1019,7 @@ export class CollectionGroup {
 }
 
 /**
- * クエリクラス
+ * Query class
  */
 export class Query {
   private client: FirestoreClient;
@@ -948,11 +1052,11 @@ export class Query {
   }
 
   /**
-   * フィルター条件を追加
-   * @param fieldPath フィールドパス
-   * @param opStr 演算子
-   * @param value 値
-   * @returns Queryインスタンス
+   * Add filter condition
+   * @param fieldPath Field path
+   * @param opStr Operator
+   * @param value Value
+   * @returns Query instance
    */
   where(fieldPath: string, opStr: string, value: any): Query {
     const query = new Query(
@@ -964,7 +1068,7 @@ export class Query {
       this.allDescendants
     );
 
-    // 演算子の変換
+    // Operator conversion
     let firestoreOp: string;
     switch (opStr) {
       case "==":
@@ -1011,10 +1115,10 @@ export class Query {
   }
 
   /**
-   * 並べ替え条件を追加
-   * @param fieldPath フィールドパス
-   * @param directionStr 並べ替え方向（'asc'または'desc'）
-   * @returns Queryインスタンス
+   * Add sorting condition
+   * @param fieldPath Field path
+   * @param directionStr Sort direction ('asc' or 'desc')
+   * @returns Query instance
    */
   orderBy(fieldPath: string, directionStr: "asc" | "desc" = "asc"): Query {
     const query = new Query(
@@ -1032,9 +1136,9 @@ export class Query {
   }
 
   /**
-   * 取得件数の制限を設定
-   * @param limit 最大件数
-   * @returns Queryインスタンス
+   * Set limit on number of results
+   * @param limit Maximum number
+   * @returns Query instance
    */
   limit(limit: number): Query {
     const query = new Query(
@@ -1050,9 +1154,9 @@ export class Query {
   }
 
   /**
-   * スキップ件数を設定
-   * @param offset スキップ件数
-   * @returns Queryインスタンス
+   * Set number of documents to skip
+   * @param offset Number to skip
+   * @returns Query instance
    */
   offset(offset: number): Query {
     const query = new Query(
@@ -1068,8 +1172,8 @@ export class Query {
   }
 
   /**
-   * クエリを実行
-   * @returns QuerySnapshotインスタンス
+   * Execute query
+   * @returns QuerySnapshot instance
    */
   async get(): Promise<QuerySnapshot> {
     const results = await this.client.query(
@@ -1082,7 +1186,7 @@ export class Query {
 }
 
 /**
- * クエリ結果クラス
+ * Query result class
  */
 export class QuerySnapshot {
   private _docs: DocumentSnapshot[];
@@ -1095,29 +1199,29 @@ export class QuerySnapshot {
   }
 
   /**
-   * 結果のドキュメント配列
+   * Array of documents in the result
    */
   get docs(): DocumentSnapshot[] {
     return this._docs;
   }
 
   /**
-   * 結果が空かどうか
+   * Whether the result is empty
    */
   get empty(): boolean {
     return this._docs.length === 0;
   }
 
   /**
-   * 結果の件数
+   * Number of results
    */
   get size(): number {
     return this._docs.length;
   }
 
   /**
-   * 各ドキュメントに対してコールバックを実行
-   * @param callback 各ドキュメントに対して実行するコールバック関数
+   * Execute callback for each document
+   * @param callback Callback function to execute for each document
    */
   forEach(callback: (result: DocumentSnapshot) => void): void {
     this._docs.forEach(callback);
@@ -1125,7 +1229,7 @@ export class QuerySnapshot {
 }
 
 /**
- * ドキュメントスナップショットクラス
+ * Document snapshot class
  */
 export class DocumentSnapshot {
   private _id: string;
@@ -1137,22 +1241,22 @@ export class DocumentSnapshot {
   }
 
   /**
-   * ドキュメントID
+   * Document ID
    */
   get id(): string {
     return this._id;
   }
 
   /**
-   * ドキュメントが存在するかどうか
+   * Whether the document exists
    */
   get exists(): boolean {
     return this._data !== null;
   }
 
   /**
-   * ドキュメントデータを取得
-   * @returns ドキュメントデータ（存在しない場合はundefined）
+   * Get document data
+   * @returns Document data (undefined if it doesn't exist)
    */
   data(): Record<string, any> | undefined {
     return this._data || undefined;
@@ -1160,11 +1264,11 @@ export class DocumentSnapshot {
 }
 
 /**
- * 書き込み結果クラス
+ * Write result class
  */
 export class WriteResult {
   /**
-   * 書き込み時刻
+   * Write timestamp
    */
   readonly writeTime: Date;
 
@@ -1174,28 +1278,37 @@ export class WriteResult {
 }
 
 /**
- * 新しいFirestoreクライアントインスタンスを作成
- * @param config Firestore設定オブジェクト
- * @returns FirestoreClientインスタンス
+ * Create a new Firestore client instance
+ * @param config Firestore configuration object
+ * @returns FirestoreClient instance
  *
  * @example
- * // デフォルトデータベースに接続
+ * // Connect to default database
  * const db = createFirestoreClient({
  *   projectId: 'your-project-id',
  *   privateKey: 'your-private-key',
  *   clientEmail: 'your-client-email'
  * });
  *
- * // 異なる名前のデータベースに接続
+ * // Connect to a different named database
  * const customDb = createFirestoreClient({
  *   projectId: 'your-project-id',
  *   privateKey: 'your-private-key',
  *   clientEmail: 'your-client-email',
  *   databaseId: 'your-database-id'
  * });
+ *
+ * // Connect to local emulator (no auth required)
+ * const emulatorDb = createFirestoreClient({
+ *   projectId: 'demo-project',
+ *   useEmulator: true,
+ *   emulatorHost: '127.0.',
+ *   emulatorPort: 8080,
+ *   debug: true // Optional: enables detailed logging
+ * });
  */
 export function createFirestoreClient(config: FirestoreConfig) {
-  // 秘密鍵のフォーマットを確認
+  // Check private key format
   if (config.privateKey) {
     config = {
       ...config,
