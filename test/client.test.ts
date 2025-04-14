@@ -626,4 +626,46 @@ describe("Firebase Rest Firestore", () => {
       throw error;
     }
   });
+
+  // Test the doc method
+  it("Should create document references with valid paths and reject invalid paths", () => {
+    // Valid document paths (even number of segments)
+    const validPaths = [
+      "collection/doc1",
+      "collection/doc1/subcollection/subdoc",
+      "collection/doc1/subcollection/subdoc/deepcollection/deepdoc"
+    ];
+
+    for (const path of validPaths) {
+      // This should not throw an error
+      const docRef = client.doc(path);
+      expect(docRef).toBeDefined();
+      expect(docRef.id).toBe(path.split("/").pop());
+    }
+
+    // Invalid document paths (odd number of segments)
+    const invalidPaths = [
+      "collection",
+      "collection/doc1/subcollection",
+      "collection/doc1/subcollection/subdoc/deepcollection"
+    ];
+
+    for (const path of invalidPaths) {
+      // This should throw an error
+      expect(() => client.doc(path)).toThrow(
+        "Invalid document path. Document path must point to a document, not a collection."
+      );
+    }
+
+    // Test that document reference has the correct path components
+    const complexPath = "users/user123/posts/post456";
+    const docRef = client.doc(complexPath);
+    
+    expect(docRef.id).toBe("post456");
+    expect(docRef.path).toBe(complexPath);
+    
+    // Verify the parent collection is correctly identified
+    const collectionRef = docRef.parent;
+    expect(collectionRef.path).toBe("users/user123/posts");
+  });
 });

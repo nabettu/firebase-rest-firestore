@@ -133,7 +133,7 @@ export class FirestoreClient {
   doc(path: string): DocumentReference {
     // Configuration check is performed at the time of actual operation
     const parts = path.split("/");
-    if (parts.length % 2 === 0) {
+    if (parts.length % 2 !== 0) {
       throw new Error(
         "Invalid document path. Document path must point to a document, not a collection."
       );
@@ -566,7 +566,7 @@ export class FirestoreClient {
  */
 export class CollectionReference {
   private client: FirestoreClient;
-  private path: string;
+  private _path: string;
   private _queryConstraints: {
     where: Array<{ field: string; op: string; value: any }>;
     orderBy?: string;
@@ -577,10 +577,17 @@ export class CollectionReference {
 
   constructor(client: FirestoreClient, path: string) {
     this.client = client;
-    this.path = path;
+    this._path = path;
     this._queryConstraints = {
       where: [],
     };
+  }
+
+  /**
+   * Get collection path
+   */
+  get path(): string {
+    return this._path;
   }
 
   /**
@@ -786,6 +793,13 @@ export class DocumentReference {
    */
   get path(): string {
     return `${this.collectionPath}/${this.docId}`;
+  }
+  
+  /**
+   * Get parent collection reference
+   */
+  get parent(): CollectionReference {
+    return new CollectionReference(this.client, this.collectionPath);
   }
 
   /**
