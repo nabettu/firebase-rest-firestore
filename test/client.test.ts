@@ -7,15 +7,15 @@ import {
 import { loadConfig, getTestCollectionName } from "./helpers";
 
 /**
- * 注意: 複合クエリのテストを実行する前に、以下のフィールドに対して複合インデックスを作成する必要があります
+ * Note: Before running composite query tests, you need to create composite indices for the following fields:
  * - category + stock
  * - price + stock
  * - category + price
- * - category + tags (tags にはarray_contains型のインデックス)
+ * - category + tags (tags requires an array_contains type index)
  *
- * Firestoreコンソールから手動で作成するか、Firebase CLIを使用してデプロイしてください。
+ * Create these manually from the Firestore console or deploy using Firebase CLI.
  *
- * インデックス作成例（Firebase CLIのfirestore.indexes.json):
+ * Index creation example (firestore.indexes.json for Firebase CLI):
  * ```
  * {
  *   "indexes": [
@@ -56,27 +56,30 @@ import { loadConfig, getTestCollectionName } from "./helpers";
  * ```
  */
 
-// 固定のテストコレクション名（複合インデックス用）
+// Fixed test collection name (for composite indices)
 const INDEXED_TEST_COLLECTION = "test_indexed_collection";
-// コレクショングループテスト用の固定コレクション名
+// Fixed collection name for collection group tests
 const NESTED_COLLECTION_NAME = "items";
 
 describe("Firebase Rest Firestore", () => {
   let client: FirestoreClient;
   let testCollection: string;
   let createdIds: { collection: string; id: string }[] = [];
+  let debugMode: boolean;
 
   beforeEach(() => {
-    // 環境変数から設定を読み込みクライアントを初期化
+    // Initialize client by loading configuration from environment variables
     const config = loadConfig();
     client = createFirestoreClient(config);
-    // 通常のテストでは動的なコレクション名を使用
+    // Extract debug setting from config
+    debugMode = config.debug || false;
+    // Use dynamic collection names for normal tests
     testCollection = getTestCollectionName();
     createdIds = [];
   });
 
   afterEach(async () => {
-    // テストで作成したドキュメントをクリーンアップ
+    // Clean up documents created during tests
     for (const { collection, id } of createdIds) {
       try {
         await client.delete(collection, id);
@@ -88,16 +91,16 @@ describe("Firebase Rest Firestore", () => {
     }
   });
 
-  // 基本的なクライアント機能テスト
-  it("クライアントが正しく初期化されること", () => {
+  // Basic client functionality test
+  it("Client should initialize correctly", () => {
     expect(client).toBeDefined();
   });
 
-  // 基本的なCRUD操作テスト
-  it("ドキュメントの作成、読み取り、更新、削除ができること", async () => {
-    // 作成テスト
+  // Basic CRUD operations test
+  it("Should be able to create, read, update, and delete documents", async () => {
+    // Creation test
     const testData = {
-      name: "テストアイテム",
+      name: "Test Item",
       value: 123,
       active: true,
     };
@@ -111,7 +114,7 @@ describe("Firebase Rest Firestore", () => {
     expect(createdDoc.value).toBe(testData.value);
     expect(createdDoc.active).toBe(testData.active);
 
-    // 読み取りテスト
+    // Reading test
     const fetchedDoc = await client.get(testCollection, createdDoc.id);
     expect(fetchedDoc).toBeDefined();
     expect(fetchedDoc?.id).toBe(createdDoc.id);
@@ -119,9 +122,9 @@ describe("Firebase Rest Firestore", () => {
     expect(fetchedDoc?.value).toBe(testData.value);
     expect(fetchedDoc?.active).toBe(testData.active);
 
-    // 更新テスト
+    // Update test
     const updateData = {
-      name: "更新後のアイテム",
+      name: "Updated Item",
       active: false,
     };
 
@@ -137,69 +140,69 @@ describe("Firebase Rest Firestore", () => {
     expect(updatedDoc.value).toBe(testData.value);
     expect(updatedDoc.active).toBe(updateData.active);
 
-    // 更新確認テスト
+    // Update confirmation test
     const fetchedUpdatedDoc = await client.get(testCollection, createdDoc.id);
     expect(fetchedUpdatedDoc?.name).toBe(updateData.name);
     expect(fetchedUpdatedDoc?.value).toBe(testData.value);
     expect(fetchedUpdatedDoc?.active).toBe(updateData.active);
 
-    // 削除テスト
+    // Delete test
     await client.delete(testCollection, createdDoc.id);
     const deletedDoc = await client.get(testCollection, createdDoc.id);
     expect(deletedDoc).toBeNull();
 
-    // 削除済みのIDはクリーンアップ不要
+    // IDs of deleted documents don't need cleanup
     createdIds = createdIds.filter(
       doc => !(doc.collection === testCollection && doc.id === createdDoc.id)
     );
   });
 
-  // リファレンスAPIテスト
-  it("リファレンスAPIでのドキュメント操作ができること", async () => {
-    // コレクションリファレンス
+  // Reference API test
+  it("Should be able to operate on documents using the reference API", async () => {
+    // Collection reference
     const collRef = client.collection(testCollection);
     expect(collRef).toBeDefined();
 
-    // ドキュメント追加
-    const testData = { name: "リファレンステスト", count: 100 };
+    // Add document
+    const testData = { name: "Reference Test", count: 100 };
     const docRef = await collRef.add(testData);
     createdIds.push({ collection: testCollection, id: docRef.id });
 
     expect(docRef).toBeDefined();
     expect(docRef.id).toBeDefined();
 
-    // ドキュメント取得
+    // Get document
     const snapshot = await docRef.get();
     expect(snapshot.exists).toBe(true);
     expect(snapshot.data()).toMatchObject(testData);
 
-    // ドキュメント更新
+    // Update document
     await docRef.update({
-      name: "更新されたドキュメント",
+      name: "Updated Document",
       count: 200,
     });
 
-    // 更新確認
+    // Confirm update
     const updatedSnapshot = await docRef.get();
-    expect(updatedSnapshot.data()?.name).toBe("更新されたドキュメント");
+    expect(updatedSnapshot.data()?.name).toBe("Updated Document");
     expect(updatedSnapshot.data()?.count).toBe(200);
 
-    // ドキュメント削除
+    // Delete document
     await docRef.delete();
 
-    // 削除確認
+    // Confirm deletion
     const deletedSnapshot = await docRef.get();
     expect(deletedSnapshot.exists).toBe(false);
 
-    // 削除済みのIDはクリーンアップ不要
+    // IDs of deleted documents don't need cleanup
     createdIds = createdIds.filter(
       doc => !(doc.collection === testCollection && doc.id === docRef.id)
     );
   });
 
-  // シンプルなクエリテスト
-  it("基本的なクエリが実行できること", async () => {
-    // テストデータを複数追加
+  // Simple query test
+  it("Should be able to execute basic queries", async () => {
+    // Add multiple test data items
     const testData = [
       { category: "A", price: 100, stock: true },
       { category: "B", price: 200, stock: false },
@@ -211,31 +214,31 @@ describe("Firebase Rest Firestore", () => {
       createdIds.push({ collection: testCollection, id: doc.id });
     }
 
-    // 単一条件のフィルタリングテストのみに絞る
-    console.log("単一条件フィルタリングテスト開始");
+    // Limit to single-condition filtering test
+    if (debugMode) console.log("Starting single condition filtering test");
     try {
       const filteredResults = await client
         .collection(testCollection)
         .where("category", "==", "A")
         .get();
 
-      console.log("フィルタリング結果:", filteredResults.docs.length);
+      if (debugMode) console.log("Filtering results:", filteredResults.docs.length);
       expect(filteredResults.docs.length).toBe(2);
       expect(
         filteredResults.docs.every(doc => doc.data()?.category === "A")
       ).toBe(true);
     } catch (error) {
-      console.error("フィルタリングテスト失敗:", error);
+      console.error("Filtering test failed:", error);
       throw error;
     }
   });
 
-  // 複数フィルタのテスト
-  it("複数のフィルタ条件を組み合わせたクエリが実行できること", async () => {
-    // 固定のインデックス付きコレクションを使用
+  // Multiple filter test
+  it("Should be able to execute queries with multiple filter conditions", async () => {
+    // Use fixed collection with indexes
     const indexedCollection = INDEXED_TEST_COLLECTION;
 
-    // テストデータを複数追加
+    // Add multiple test data items
     const testData = [
       { category: "A", price: 100, stock: true, tags: ["sale", "new"] },
       { category: "B", price: 200, stock: false, tags: ["sale"] },
@@ -249,16 +252,16 @@ describe("Firebase Rest Firestore", () => {
       createdIds.push({ collection: indexedCollection, id: doc.id });
     }
 
-    console.log("複数フィルタテスト開始");
+    if (debugMode) console.log("Starting multiple filter test");
     try {
-      // カテゴリAかつ在庫あり
+      // Category A and in stock
       const filteredResults1 = await client
         .collection(indexedCollection)
         .where("category", "==", "A")
         .where("stock", "==", true)
         .get();
 
-      console.log("カテゴリAかつ在庫ありの結果:", filteredResults1.docs.length);
+      if (debugMode) console.log("Category A and in stock results:", filteredResults1.docs.length);
       expect(filteredResults1.docs.length).toBe(2);
       filteredResults1.docs.forEach(doc => {
         const data = doc.data();
@@ -266,14 +269,14 @@ describe("Firebase Rest Firestore", () => {
         expect(data?.stock).toBe(true);
       });
 
-      // 価格が100より大きいかつ在庫あり
+      // Price greater than 100 and in stock
       const filteredResults2 = await client
         .collection(indexedCollection)
         .where("price", ">", 100)
         .where("stock", "==", true)
         .get();
 
-      console.log("価格>100かつ在庫ありの結果:", filteredResults2.docs.length);
+      if (debugMode) console.log("Price > 100 and in stock results:", filteredResults2.docs.length);
       expect(filteredResults2.docs.length).toBe(2);
       filteredResults2.docs.forEach(doc => {
         const data = doc.data();
@@ -281,15 +284,15 @@ describe("Firebase Rest Firestore", () => {
         expect(data?.stock).toBe(true);
       });
 
-      // カテゴリAかつ価格が100以下
+      // Category A and price less than or equal to 100
       const filteredResults3 = await client
         .collection(indexedCollection)
         .where("category", "==", "A")
         .where("price", "<=", 100)
         .get();
 
-      console.log(
-        "カテゴリAかつ価格<=100の結果:",
+      if (debugMode) console.log(
+        "Category A and price <= 100 results:",
         filteredResults3.docs.length
       );
       expect(filteredResults3.docs.length).toBe(2);
@@ -299,28 +302,28 @@ describe("Firebase Rest Firestore", () => {
         expect(data?.price).toBeLessThanOrEqual(100);
       });
 
-      // タグに'sale'を含むドキュメント
+      // Documents containing 'sale' tag
       const filteredResults4 = await client
         .collection(indexedCollection)
         .where("tags", "array-contains", "sale")
         .get();
 
-      console.log("タグにsaleを含む結果:", filteredResults4.docs.length);
+      if (debugMode) console.log("Results containing sale tag:", filteredResults4.docs.length);
       expect(filteredResults4.docs.length).toBe(3);
       filteredResults4.docs.forEach(doc => {
         const data = doc.data();
         expect(data?.tags).toContain("sale");
       });
 
-      // カテゴリAかつタグに'sale'を含むドキュメント
+      // Category A and containing 'sale' tag
       const filteredResults5 = await client
         .collection(indexedCollection)
         .where("category", "==", "A")
         .where("tags", "array-contains", "sale")
         .get();
 
-      console.log(
-        "カテゴリAかつタグにsaleを含む結果:",
+      if (debugMode) console.log(
+        "Category A and containing sale tag results:",
         filteredResults5.docs.length
       );
       expect(filteredResults5.docs.length).toBe(1);
@@ -330,27 +333,27 @@ describe("Firebase Rest Firestore", () => {
         expect(data?.tags).toContain("sale");
       });
 
-      // カテゴリが'A'または'B'のドキュメント (in演算子)
+      // Documents with category 'A' or 'B' (in operator)
       const filteredResults6 = await client
         .collection(indexedCollection)
         .where("category", "in", ["A", "B"])
         .get();
 
-      console.log("カテゴリがAまたはBの結果:", filteredResults6.docs.length);
+      if (debugMode) console.log("Results with category A or B:", filteredResults6.docs.length);
       expect(filteredResults6.docs.length).toBe(4);
       filteredResults6.docs.forEach(doc => {
         const data = doc.data();
         expect(["A", "B"]).toContain(data?.category);
       });
 
-      // カテゴリが'A'または'B'ではないドキュメント (not-in演算子)
+      // Documents with category not 'A' or 'B' (not-in operator)
       const filteredResults7 = await client
         .collection(indexedCollection)
         .where("category", "not-in", ["A", "B"])
         .get();
 
-      console.log(
-        "カテゴリがAまたはBでない結果:",
+      if (debugMode) console.log(
+        "Results with category not A or B:",
         filteredResults7.docs.length
       );
       expect(filteredResults7.docs.length).toBe(1);
@@ -359,31 +362,31 @@ describe("Firebase Rest Firestore", () => {
         expect(["A", "B"]).not.toContain(data?.category);
       });
     } catch (error) {
-      console.error("複数フィルタテスト失敗:", error);
+      console.error("Multiple filter test failed:", error);
       throw error;
     }
   });
 
-  // ネストしたコレクションのテスト
-  it("ネストしたコレクションでのドキュメント操作ができること", async () => {
-    // 親ドキュメント作成
-    const parentData = { name: "親ドキュメント" };
+  // Nested collection test
+  it("Should be able to operate on documents in nested collections", async () => {
+    // Create parent document
+    const parentData = { name: "Parent Document" };
     const parentDoc = await client.add(testCollection, parentData);
     createdIds.push({ collection: testCollection, id: parentDoc.id });
 
-    // サブコレクションのリファレンス取得
+    // Get subcollection reference
     const subCollectionRef = client.collection(
       `${testCollection}/${parentDoc.id}/${NESTED_COLLECTION_NAME}`
     );
 
-    // サブコレクションにデータ追加
+    // Add data to subcollection
     const subCollectionData = [
-      { name: "サブアイテム1", value: 100 },
-      { name: "サブアイテム2", value: 200 },
-      { name: "サブアイテム3", value: 300 },
+      { name: "Sub Item 1", value: 100 },
+      { name: "Sub Item 2", value: 200 },
+      { name: "Sub Item 3", value: 300 },
     ];
 
-    // サブコレクションにドキュメント追加
+    // Add documents to subcollection
     const subDocRefs: DocumentReference[] = [];
     for (const data of subCollectionData) {
       const subDoc = await subCollectionRef.add(data);
@@ -392,16 +395,16 @@ describe("Firebase Rest Firestore", () => {
       createdIds.push({ collection: nestedPath, id: subDoc.id });
     }
 
-    // サブコレクションからデータ取得
+    // Get data from subcollection
     const subCollectionSnapshot = await subCollectionRef.get();
     expect(subCollectionSnapshot.docs.length).toBe(3);
 
-    // サブコレクションの特定ドキュメント取得
+    // Get specific document from subcollection
     const subDocSnapshot = await subDocRefs[0].get();
     expect(subDocSnapshot.exists).toBe(true);
-    expect(subDocSnapshot.data()?.name).toBe("サブアイテム1");
+    expect(subDocSnapshot.data()?.name).toBe("Sub Item 1");
 
-    // サブコレクションのクエリテスト
+    // Test subcollection query
     const querySnapshot = await subCollectionRef.where("value", ">", 150).get();
 
     expect(querySnapshot.docs.length).toBe(2);
@@ -409,62 +412,62 @@ describe("Firebase Rest Firestore", () => {
       expect(doc.data()?.value).toBeGreaterThan(150);
     });
 
-    // サブドキュメントの更新
+    // Update subdocument
     await subDocRefs[0].update({ value: 150 });
     const updatedSubDoc = await subDocRefs[0].get();
     expect(updatedSubDoc.data()?.value).toBe(150);
 
-    // サブドキュメントの削除とクリーンアップリストからの削除
+    // Delete subdocument and remove from cleanup list
     const subDocIdToDelete = subDocRefs[2].id;
     const nestedPathToDelete = `${testCollection}/${parentDoc.id}/${NESTED_COLLECTION_NAME}`;
     await subDocRefs[2].delete();
 
-    // 削除確認
+    // Confirm deletion
     const deletedDocSnapshot = await client.get(
       nestedPathToDelete,
       subDocIdToDelete
     );
     expect(deletedDocSnapshot).toBeNull();
 
-    // クリーンアップリストから削除したドキュメントを除外
+    // Remove deleted document from cleanup list
     createdIds = createdIds.filter(
       doc =>
         !(doc.collection === nestedPathToDelete && doc.id === subDocIdToDelete)
     );
   });
 
-  // ネストしたオブジェクトのフィールド更新テスト
-  it("ドット記法でネストしたオブジェクトのフィールドを更新できること", async () => {
-    // ネストしたオブジェクトを含むテストデータの作成
+  // Test updating nested object fields
+  it("Should be able to update nested object fields using dot notation", async () => {
+    // Create test data with nested objects
     const testData = {
-      name: "テストユーザー",
+      name: "Test User",
       profile: {
         age: 30,
-        job: "エンジニア",
+        job: "Engineer",
         address: {
-          prefecture: "東京",
-          city: "新宿区",
+          prefecture: "Tokyo",
+          city: "Shinjuku",
         },
       },
       favorites: {
-        food: "ラーメン",
-        color: "青",
-        sports: "サッカー",
+        food: "Ramen",
+        color: "Blue",
+        sports: "Soccer",
       },
     };
 
-    // ドキュメント作成
+    // Create document
     const createdDoc = await client.add(testCollection, testData);
     createdIds.push({ collection: testCollection, id: createdDoc.id });
     expect(createdDoc).toBeDefined();
     expect(createdDoc.profile.age).toBe(30);
-    expect(createdDoc.favorites.color).toBe("青");
+    expect(createdDoc.favorites.color).toBe("Blue");
 
-    // ネストしたフィールドの更新（ドット記法）
+    // Update nested fields (dot notation)
     const updateData = {
       "profile.age": 31,
-      "favorites.color": "赤",
-      "profile.address.city": "渋谷区",
+      "favorites.color": "Red",
+      "profile.address.city": "Shibuya",
     };
 
     const updatedDoc = await client.update(
@@ -473,22 +476,22 @@ describe("Firebase Rest Firestore", () => {
       updateData
     );
 
-    // 更新結果の検証
+    // Verify update results
     expect(updatedDoc).toBeDefined();
     expect(updatedDoc.profile.age).toBe(31);
-    expect(updatedDoc.favorites.color).toBe("赤");
-    expect(updatedDoc.profile.address.city).toBe("渋谷区");
+    expect(updatedDoc.favorites.color).toBe("Red");
+    expect(updatedDoc.profile.address.city).toBe("Shibuya");
 
-    // 更新されていないフィールドが保持されていることを確認
-    expect(updatedDoc.name).toBe("テストユーザー");
-    expect(updatedDoc.profile.job).toBe("エンジニア");
-    expect(updatedDoc.profile.address.prefecture).toBe("東京");
-    expect(updatedDoc.favorites.food).toBe("ラーメン");
-    expect(updatedDoc.favorites.sports).toBe("サッカー");
+    // Verify unchanged fields are preserved
+    expect(updatedDoc.name).toBe("Test User");
+    expect(updatedDoc.profile.job).toBe("Engineer");
+    expect(updatedDoc.profile.address.prefecture).toBe("Tokyo");
+    expect(updatedDoc.favorites.food).toBe("Ramen");
+    expect(updatedDoc.favorites.sports).toBe("Soccer");
 
-    // 存在しないネストパスへの更新テスト
+    // Test updating non-existent nested paths
     const newNestedData = {
-      "settings.theme": "ダーク",
+      "settings.theme": "Dark",
       "profile.skills": ["JavaScript", "TypeScript"],
     };
 
@@ -498,48 +501,48 @@ describe("Firebase Rest Firestore", () => {
       newNestedData
     );
 
-    // 新しいネストフィールドが作成されていることを確認
-    expect(newUpdatedDoc.settings.theme).toBe("ダーク");
+    // Verify new nested fields are created
+    expect(newUpdatedDoc.settings.theme).toBe("Dark");
     expect(newUpdatedDoc.profile.skills).toEqual(["JavaScript", "TypeScript"]);
 
-    // 既存のデータも保持されていることを確認
+    // Verify existing data is preserved
     expect(newUpdatedDoc.profile.age).toBe(31);
-    expect(newUpdatedDoc.favorites.color).toBe("赤");
+    expect(newUpdatedDoc.favorites.color).toBe("Red");
 
-    // DocumentReference APIを使った更新のテスト
+    // Test updates using DocumentReference API
     const docRef = client.collection(testCollection).doc(createdDoc.id);
     await docRef.update({
-      "favorites.color": "緑",
-      "profile.address.prefecture": "大阪",
+      "favorites.color": "Green",
+      "profile.address.prefecture": "Osaka",
     });
 
-    // 更新結果の検証
+    // Verify update results
     const finalDoc = await docRef.get();
     const finalData = finalDoc.data();
-    expect(finalData?.favorites.color).toBe("緑");
-    expect(finalData?.profile.address.prefecture).toBe("大阪");
-    expect(finalData?.profile.address.city).toBe("渋谷区");
+    expect(finalData?.favorites.color).toBe("Green");
+    expect(finalData?.profile.address.prefecture).toBe("Osaka");
+    expect(finalData?.profile.address.city).toBe("Shibuya");
   });
 
-  // コレクショングループのテスト
-  it("コレクショングループでの横断的なクエリができること", async () => {
-    // 親コレクション1
+  // Collection group test
+  it("Should be able to perform cross-collection queries using collection groups", async () => {
+    // Parent collection 1
     const parentCollection1 = `${getTestCollectionName()}_parent1`;
 
-    // 親コレクション2
+    // Parent collection 2
     const parentCollection2 = `${getTestCollectionName()}_parent2`;
 
-    // 親ドキュメント1に作成
-    const parent1Data = { name: "親ドキュメント1" };
+    // Create parent document 1
+    const parent1Data = { name: "Parent Document 1" };
     const parent1Doc = await client.add(parentCollection1, parent1Data);
     createdIds.push({ collection: parentCollection1, id: parent1Doc.id });
 
-    // 親ドキュメント2を作成
-    const parent2Data = { name: "親ドキュメント2" };
+    // Create parent document 2
+    const parent2Data = { name: "Parent Document 2" };
     const parent2Doc = await client.add(parentCollection2, parent2Data);
     createdIds.push({ collection: parentCollection2, id: parent2Doc.id });
 
-    // 親1のサブコレクションにデータ追加
+    // Add data to parent 1's subcollection
     const subColl1Ref = client.collection(
       `${parentCollection1}/${parent1Doc.id}/${NESTED_COLLECTION_NAME}`
     );
@@ -554,7 +557,7 @@ describe("Firebase Rest Firestore", () => {
       createdIds.push({ collection: path, id: doc.id });
     }
 
-    // 親2のサブコレクションにデータ追加
+    // Add data to parent 2's subcollection
     const subColl2Ref = client.collection(
       `${parentCollection2}/${parent2Doc.id}/${NESTED_COLLECTION_NAME}`
     );
@@ -569,33 +572,33 @@ describe("Firebase Rest Firestore", () => {
       createdIds.push({ collection: path, id: doc.id });
     }
 
-    // コレクショングループで全サブコレクションからクエリを実行
-    console.log("コレクショングループテスト開始");
+    // Execute query across all subcollections using collection group
+    if (debugMode) console.log("Starting collection group test");
     try {
-      // 全 "items" コレクションからカテゴリAのアイテムを検索
+      // Find category A items from all "items" collections
       const groupQuery = await client
         .collectionGroup(NESTED_COLLECTION_NAME)
         .where("category", "==", "A")
         .get();
 
-      console.log("コレクショングループクエリ結果:", groupQuery.docs.length);
+      if (debugMode) console.log("Collection group query results:", groupQuery.docs.length);
       expect(groupQuery.docs.length).toBe(2);
 
-      // すべての結果がカテゴリAであることを確認
+      // Verify all results are category A
       groupQuery.docs.forEach(doc => {
         expect(doc.data()?.category).toBe("A");
       });
 
-      // プライス順にソートされたクエリ
+      // Query sorted by price
       const sortedQuery = await client
         .collectionGroup(NESTED_COLLECTION_NAME)
         .orderBy("price", "desc")
         .get();
 
-      console.log("ソート結果:", sortedQuery.docs.length);
+      if (debugMode) console.log("Sorted results:", sortedQuery.docs.length);
       expect(sortedQuery.docs.length).toBe(4);
 
-      // 降順に並んでいることを確認
+      // Verify descending order
       let lastPrice = Infinity;
       sortedQuery.docs.forEach(doc => {
         const currentPrice = doc.data()?.price;
@@ -603,14 +606,14 @@ describe("Firebase Rest Firestore", () => {
         lastPrice = currentPrice;
       });
 
-      // 複合条件のクエリ
+      // Complex conditional query
       const complexQuery = await client
         .collectionGroup(NESTED_COLLECTION_NAME)
         .where("category", "in", ["A", "B"])
         .where("price", ">", 150)
         .get();
 
-      console.log("複合条件結果:", complexQuery.docs.length);
+      if (debugMode) console.log("Complex condition results:", complexQuery.docs.length);
       expect(complexQuery.docs.length).toBe(2);
 
       complexQuery.docs.forEach(doc => {
@@ -619,8 +622,50 @@ describe("Firebase Rest Firestore", () => {
         expect(data?.price).toBeGreaterThan(150);
       });
     } catch (error) {
-      console.error("コレクショングループテスト失敗:", error);
+      console.error("Collection group test failed:", error);
       throw error;
     }
+  });
+
+  // Test the doc method
+  it("Should create document references with valid paths and reject invalid paths", () => {
+    // Valid document paths (even number of segments)
+    const validPaths = [
+      "collection/doc1",
+      "collection/doc1/subcollection/subdoc",
+      "collection/doc1/subcollection/subdoc/deepcollection/deepdoc"
+    ];
+
+    for (const path of validPaths) {
+      // This should not throw an error
+      const docRef = client.doc(path);
+      expect(docRef).toBeDefined();
+      expect(docRef.id).toBe(path.split("/").pop());
+    }
+
+    // Invalid document paths (odd number of segments)
+    const invalidPaths = [
+      "collection",
+      "collection/doc1/subcollection",
+      "collection/doc1/subcollection/subdoc/deepcollection"
+    ];
+
+    for (const path of invalidPaths) {
+      // This should throw an error
+      expect(() => client.doc(path)).toThrow(
+        "Invalid document path. Document path must point to a document, not a collection."
+      );
+    }
+
+    // Test that document reference has the correct path components
+    const complexPath = "users/user123/posts/post456";
+    const docRef = client.doc(complexPath);
+    
+    expect(docRef.id).toBe("post456");
+    expect(docRef.path).toBe(complexPath);
+    
+    // Verify the parent collection is correctly identified
+    const collectionRef = docRef.parent;
+    expect(collectionRef.path).toBe("users/user123/posts");
   });
 });
