@@ -1,0 +1,20 @@
+{
+  "emulators": {
+    "hub": {
+      "port": 4089
+    },
+    "firestore": {
+      "port": 8089
+    },
+    "auth": {
+      "port": 9089
+    },
+    "ui": {
+      "enabled": true
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}

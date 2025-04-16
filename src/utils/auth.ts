@@ -2,9 +2,9 @@ import * as jose from "jose";
 import { FirestoreConfig } from "../types";
 
 /**
- * JWT（JSON Web Token）を作成する関数
- * @param config Firestore設定
- * @returns JWT文字列
+ * Function to create a JWT (JSON Web Token)
+ * @param config Firestore configuration
+ * @returns JWT string
  */
 export async function createJWT(config: FirestoreConfig): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
@@ -13,15 +13,15 @@ export async function createJWT(config: FirestoreConfig): Promise<string> {
     sub: config.clientEmail,
     aud: "https://oauth2.googleapis.com/token",
     iat: now,
-    exp: now + 3600, // 1時間後に期限切れ
+    exp: now + 3600, // Expires in 1 hour
     scope: "https://www.googleapis.com/auth/datastore",
   };
 
   try {
-    // 秘密鍵をインポート
+    // Import the private key
     const privateKey = await jose.importPKCS8(config.privateKey, "RS256");
 
-    // JWTを作成
+    // Create JWT
     const token = await new jose.SignJWT(payload)
       .setProtectedHeader({
         alg: "RS256",
@@ -37,14 +37,19 @@ export async function createJWT(config: FirestoreConfig): Promise<string> {
 }
 
 /**
- * Firestoreの認証トークンを取得する関数
- * @param config Firestore設定
- * @returns アクセストークン
+ * Function to get Firestore authentication token
+ * @param config Firestore configuration
+ * @returns Access token
  */
 export async function getFirestoreToken(
   config: FirestoreConfig
 ): Promise<string> {
-  // トークンを取得するためのリクエスト
+  // No authentication in emulator mode (returns a dummy token)
+  if (config.useEmulator) {
+    return "firebase-emulator-auth-token";
+  }
+  
+  // Normal authentication process
   const response = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: {
