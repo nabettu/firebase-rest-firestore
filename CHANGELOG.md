@@ -57,3 +57,4 @@
 * release.ymlにFirebase環境変数を追加し、テスト実行時に必要な設定を明確化。 ([c82a5a3](https://github.com/nabettu/firebase-rest-firestore/commit/c82a5a3fea96cf612531bbabff96f1d8325f55b5))
 * テストタイムアウトを30000ミリ秒に設定し、テスト実行時の安定性を向上。 ([c32fd41](https://github.com/nabettu/firebase-rest-firestore/commit/c32fd416124a08d26fb7bd315423cf2364df63dc))
 * バージョンを0.3.1に更新し、依存関係に@semantic-release/changelog、@semantic-release/git、semantic-releaseを追加。package-lock.jsonを更新し、関連するモジュールのバージョンを最新に保つ。 ([12bd322](https://github.com/nabettu/firebase-rest-firestore/commit/12bd32296307acf0b98379ee9a1bcfb658fc78d8))
+# 1.4.0 release notes updated
