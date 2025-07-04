@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/nabettu/firebase-rest-firestore/compare/v1.3.0...v1.4.0) (2025-07-04)
+
+
+### Features
+
+* 不要な関数とインポートを削除し、FirestoreのURL生成を修正 ([d70d089](https://github.com/nabettu/firebase-rest-firestore/commit/d70d089170c106b88eb1cda17c2dcb2c62a8f4c2))
+
 # [1.3.0](https://github.com/nabettu/firebase-rest-firestore/compare/v1.2.0...v1.3.0) (2025-07-04)
 
 
