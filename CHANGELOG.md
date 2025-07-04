@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/nabettu/firebase-rest-firestore/compare/v1.4.0...v1.5.0) (2025-07-04)
+
+
+### Features
+
+* trigger npm publish for v1.4.0 changes ([391fa02](https://github.com/nabettu/firebase-rest-firestore/commit/391fa02343ebd912bf821f680aa17098aa9a2abb))
+
 # [1.4.0](https://github.com/nabettu/firebase-rest-firestore/compare/v1.3.0...v1.4.0) (2025-07-04)
 
 
