@@ -12,14 +12,3 @@ export function formatPrivateKey(privateKey: string): string {
   return privateKey;
 }
 
-/**
- * FirestoreConfigオブジェクトの秘密鍵をフォーマットする
- * @param config 元のconfigオブジェクト
- * @returns 秘密鍵をフォーマットしたconfigオブジェクト
- */
-export function formatConfig(config: FirestoreConfig): FirestoreConfig {
-  return {
-    ...config,
-    privateKey: formatPrivateKey(config.privateKey),
-  };
-}

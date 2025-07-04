@@ -5,7 +5,7 @@ import {
   convertToFirestoreDocument,
   convertToFirestoreValue,
 } from "./utils/converter";
-import { getFirestoreBasePath, getFirestoreCollectionPath } from "./utils/path";
+import { getFirestoreBasePath } from "./utils/path";
 import { formatPrivateKey } from "./utils/config";
 import { FirestorePath, createFirestorePath } from "./utils/path";
 
@@ -615,9 +615,9 @@ export class FirestoreClient {
 
     const url = `${getFirestoreBasePath(
       this.config.projectId,
-      collectionName,
-      this.config.databaseId
-    )}/${documentId}`;
+      this.config.databaseId,
+      this.config
+    )}/${collectionName}/${documentId}`;
 
     const firestoreData = convertToFirestoreDocument(data);
 

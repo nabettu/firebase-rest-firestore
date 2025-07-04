@@ -62,22 +62,3 @@ export function getTestCollectionName(prefix: string = "test"): string {
   return `${prefix}_${timestamp}_${random}`;
 }
 
-/**
- * Cleanup process for test data
- * @param client FirestoreClient
- * @param collectionName Collection name
- * @param docIds Array of document IDs
- */
-export async function cleanupTestData(
-  client: any,
-  collectionName: string,
-  docIds: string[]
-): Promise<void> {
-  for (const id of docIds) {
-    try {
-      await client.delete(collectionName, id);
-    } catch (err) {
-      console.error(`Clean up failed for document ${id}: ${err}`);
-    }
-  }
-}

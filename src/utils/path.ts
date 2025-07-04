@@ -141,7 +141,7 @@ export class FirestorePath {
    */
   getRunQueryPath(collectionPath: string): string {
     // コレクションパス情報を取得
-    const { url, collectionId, parentPath } = this.getQueryPath(collectionPath);
+    const { collectionId, parentPath } = this.getQueryPath(collectionPath);
     
     // parentPathがある場合は、親ドキュメントパスを使用してURLを作成
     if (parentPath) {
@@ -209,26 +209,6 @@ export function getFirestoreBasePath(
   }/documents`;
 }
 
-/**
- * Get Firestore URL with collection path
- * @param projectId Project ID
- * @param collectionPath Collection path
- * @param databaseId Database ID (defaults to default)
- * @param config Firestore configuration (for emulator settings)
- * @returns Firestore URL with collection path
- */
-export function getFirestoreCollectionPath(
-  projectId: string,
-  collectionPath: string,
-  databaseId?: string,
-  config?: FirestoreConfig
-): string {
-  // Remove leading and trailing slashes
-  const cleanPath = collectionPath.replace(/^\/+|\/+$/g, '');
-  
-  // ベースパスを取得して、コレクションパスを追加
-  return `${getFirestoreBasePath(projectId, databaseId, config)}/${cleanPath}`;
-}
 
 /**
  * Extract document ID from document path
