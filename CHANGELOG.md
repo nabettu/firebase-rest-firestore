@@ -1,3 +1,18 @@
+# [1.3.0](https://github.com/nabettu/firebase-rest-firestore/compare/v1.2.0...v1.3.0) (2025-07-04)
+
+
+### Bug Fixes
+
+* doc method has incorrect validation ([ad0a6fe](https://github.com/nabettu/firebase-rest-firestore/commit/ad0a6fe5fea416bde431dd75aa887c6cd6f823b6))
+
+
+### Features
+
+* add debug flag to control log output visibility ([ca968e2](https://github.com/nabettu/firebase-rest-firestore/commit/ca968e250e82ce12d990946f6a7e9c6dc6cea8d7))
+* add emulator support ([de4cee7](https://github.com/nabettu/firebase-rest-firestore/commit/de4cee7173c36c4557754acbd4fceb42488a8673))
+* add esm support ([2baf7ad](https://github.com/nabettu/firebase-rest-firestore/commit/2baf7ad45335e7828eb1d76b31d836aa1704db91))
+* update package-lock.json dependencies ([e983e84](https://github.com/nabettu/firebase-rest-firestore/commit/e983e8466959619f1871155746eacdc4037582e0))
+
 # [1.2.0](https://github.com/nabettu/firebase-rest-firestore/compare/v1.1.2...v1.2.0) (2025-03-25)
 
 
