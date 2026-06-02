@@ -134,6 +134,43 @@ Parameters:
 
 Returns: The added document with auto-generated ID.
 
+### FieldValue
+
+Sentinels for special write behaviors, mirroring the native Firebase SDK.
+
+#### FieldValue.serverTimestamp()
+
+Sets the field to the server's request timestamp at write time (rather than an
+unreliable client clock). Works with `add`, `update`, `set`, and `createWithId`,
+including nested fields. The returned document contains the resolved `Date`.
+
+```typescript
+import { createFirestoreClient, FieldValue } from "firebase-rest-firestore";
+
+const client = createFirestoreClient(config);
+
+// On create (auto-generated ID)
+const post = await client.add("posts", {
+  title: "Hello",
+  createdAt: FieldValue.serverTimestamp(),
+});
+console.log(post.createdAt); // Date, set by the server
+
+// On update
+await client.update("posts", post.id, {
+  updatedAt: FieldValue.serverTimestamp(),
+});
+
+// Nested fields are supported too
+await client.collection("posts").doc(post.id).set({
+  meta: { touchedAt: FieldValue.serverTimestamp() },
+});
+```
+
+> Writes containing a `FieldValue` are sent through the Firestore `commit`
+> endpoint so the transform is applied server-side. A `FieldValue` cannot be
+> used inside an array.
+
 ## Error Handling
 
 Firebase REST Firestore throws exceptions with appropriate error messages when API requests fail. Here's an example of error handling:

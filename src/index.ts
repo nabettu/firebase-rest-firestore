@@ -14,6 +14,9 @@ import {
   WriteResult,
 } from "./client";
 
+// FieldValue センチネルのエクスポート
+export { FieldValue } from "./field-value";
+
 // ユーティリティ関数のエクスポート
 export { getFirestoreToken } from "./utils/auth";
 export {

@@ -121,6 +121,24 @@ export type FirestoreFieldValue =
   | { arrayValue: { values: FirestoreFieldValue[] } };
 
 /**
+ * A Firestore field transform applied server-side during a commit write.
+ * See: https://firebase.google.com/docs/firestore/reference/rest/v1/Write#FieldTransform
+ */
+export interface FieldTransform {
+  fieldPath: string;
+  setToServerValue: "REQUEST_TIME";
+}
+
+/**
+ * A single write in a `documents:commit` request.
+ */
+export interface CommitWrite {
+  update: { name: string; fields: Record<string, FirestoreFieldValue> };
+  updateTransforms?: FieldTransform[];
+  currentDocument?: { exists?: boolean; updateTime?: string };
+}
+
+/**
  * Firestoreドキュメント型
  */
 export interface FirestoreDocument {

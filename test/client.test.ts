@@ -4,6 +4,7 @@ import {
   createFirestoreClient,
   DocumentReference,
 } from "../src/client";
+import { FieldValue } from "../src/field-value";
 import { loadConfig, getTestCollectionName } from "./helpers";
 
 /**
@@ -667,5 +668,44 @@ describe("Firebase Rest Firestore", () => {
     // Verify the parent collection is correctly identified
     const collectionRef = docRef.parent;
     expect(collectionRef.path).toBe("users/user123/posts");
+  });
+
+  // Server timestamp test (FieldValue.serverTimestamp)
+  it("Should populate fields with the server timestamp via FieldValue.serverTimestamp()", async () => {
+    const before = Date.now();
+
+    // serverTimestamp on add() (auto-generated ID via commit)
+    const created = await client.add(testCollection, {
+      name: "ts",
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    createdIds.push({ collection: testCollection, id: created.id });
+
+    expect(created.name).toBe("ts");
+    expect(created.createdAt).toBeInstanceOf(Date);
+    const createdMs = (created.createdAt as Date).getTime();
+    expect(createdMs).toBeGreaterThanOrEqual(before - 1000);
+    expect(createdMs).toBeLessThanOrEqual(Date.now() + 1000);
+
+    // serverTimestamp on update(); existing fields preserved
+    const updated = await client.update(testCollection, created.id, {
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    expect(updated.updatedAt).toBeInstanceOf(Date);
+    expect(updated.name).toBe("ts");
+    expect(updated.createdAt).toBeInstanceOf(Date);
+
+    // nested serverTimestamp via DocumentReference.set on a new document
+    const ref = client.collection(testCollection).doc();
+    createdIds.push({ collection: testCollection, id: ref.id });
+    await ref.set({
+      label: "x",
+      meta: { touchedAt: FieldValue.serverTimestamp() },
+    });
+
+    const snap = await ref.get();
+    expect(snap.exists).toBe(true);
+    expect(snap.data()?.label).toBe("x");
+    expect(snap.data()?.meta?.touchedAt).toBeInstanceOf(Date);
   });
 });
