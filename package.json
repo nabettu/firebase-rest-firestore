@@ -39,7 +39,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "jose": "^4.14.4"
+    "jose": "^4.14.4",
+    "urlpattern-polyfill": "^10.1.0"
   },
   "devDependencies": {
     "@semantic-release/changelog": "^6.0.3",

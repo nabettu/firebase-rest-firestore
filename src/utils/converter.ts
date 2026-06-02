@@ -1,7 +1,10 @@
+import { DocumentReference } from "../client"
 import {
   FirestoreDocument,
   FirestoreFieldValue,
   FirestoreResponse,
+  LiteralDocumentReference,
+  LiteralGeoPointValue,
 } from "../types";
 import { getDocumentId } from "./path";
 
@@ -11,8 +14,16 @@ import { getDocumentId } from "./path";
  * @returns Firestore形式の値
  */
 export function convertToFirestoreValue(value: any): FirestoreFieldValue {
+  // store in temporary variable to enable TypeScript to be more thorough
+  let unknown: unknown = value;
   if (value instanceof Date) {
     return { timestampValue: value.toISOString() };
+  } else if (value instanceof DocumentReference) {
+    return { referenceValue: value["client"]["pathUtil"].getParentReference(value.path) };
+  } else if (value instanceof LiteralDocumentReference) {
+    return { referenceValue: value.referenceValue }
+  } else if (value instanceof LiteralGeoPointValue) {
+    return { geoPointValue: value.geoPointValue };
   } else if (typeof value === "string") {
     return { stringValue: value };
   } else if (typeof value === "number") {
@@ -64,6 +75,10 @@ export function convertFromFirestoreValue(
     return null;
   } else if ("timestampValue" in firestoreValue) {
     return new Date(firestoreValue.timestampValue);
+  } else if ("geoPointValue" in firestoreValue) {
+    return new LiteralGeoPointValue(firestoreValue)
+  } else if ("referenceValue" in firestoreValue) {
+    return new LiteralDocumentReference(firestoreValue);
   } else if ("mapValue" in firestoreValue && firestoreValue.mapValue.fields) {
     return Object.entries(firestoreValue.mapValue.fields).reduce(
       (acc, [key, val]) => ({
@@ -72,11 +87,9 @@ export function convertFromFirestoreValue(
       }),
       {}
     );
-  } else if (
-    "arrayValue" in firestoreValue &&
-    firestoreValue.arrayValue.values
-  ) {
-    return firestoreValue.arrayValue.values.map(convertFromFirestoreValue);
+  } else if ("arrayValue" in firestoreValue) {
+    // The `values` field can be undefined, meaning that this is an empty array
+    return (firestoreValue.arrayValue.values ?? []).map(convertFromFirestoreValue);
   }
 
   return null;
