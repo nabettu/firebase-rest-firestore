@@ -1,13 +1,29 @@
 import { FirestoreConfig, FirestoreResponse, QueryOptions } from "./types";
 import { getFirestoreToken } from "./utils/auth";
 import {
+  buildCommitWrite,
   convertFromFirestoreDocument,
   convertToFirestoreDocument,
   convertToFirestoreValue,
+  extractFieldTransforms,
 } from "./utils/converter";
+import { FieldTransform } from "./types";
 import { getFirestoreBasePath } from "./utils/path";
 import { formatPrivateKey } from "./utils/config";
 import { FirestorePath, createFirestorePath } from "./utils/path";
+
+/**
+ * Generate a random 20-character document ID (same alphabet as the Firebase SDKs).
+ */
+function generateAutoId(): string {
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let id = "";
+  for (let i = 0; i < 20; i++) {
+    id += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return id;
+}
 
 /**
  * Firestore client class
@@ -131,6 +147,90 @@ export class FirestoreClient {
   }
 
   /**
+   * Apply a single write through the `documents:commit` endpoint. This is the
+   * only REST path that supports field transforms (e.g. server timestamps).
+   * @param collectionName Collection path
+   * @param documentId Document ID
+   * @param fields Already-converted Firestore field values
+   * @param transforms Field transforms to apply after the update
+   * @param currentDocument Optional precondition (e.g. `{ exists: false }`)
+   * @private
+   */
+  private async commit(
+    collectionName: string,
+    documentId: string,
+    fields: Record<string, any>,
+    transforms: FieldTransform[],
+    currentDocument?: { exists?: boolean; updateTime?: string }
+  ): Promise<void> {
+    const documentName = this.pathUtil.getParentReference(
+      `${collectionName}/${documentId}`
+    );
+    const write = buildCommitWrite(
+      documentName,
+      fields,
+      transforms,
+      currentDocument
+    );
+    const url = `${this.pathUtil.getBasePath()}:commit`;
+
+    if (this.debug) {
+      console.log(`Committing write to: ${url}`, JSON.stringify(write));
+    }
+
+    const headers = await this.prepareHeaders();
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ writes: [write] }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      if (this.debug) {
+        console.error(`Error response: ${errorText}`);
+      }
+      const error = new Error(
+        `Firestore API error: ${
+          response.statusText || response.status
+        } - ${errorText}`
+      ) as Error & { status?: number; alreadyExists?: boolean };
+      error.status = response.status;
+      error.alreadyExists =
+        response.status === 409 || /ALREADY_EXISTS/.test(errorText);
+      throw error;
+    }
+  }
+
+  /**
+   * Commit a write and read the document back, so the resolved transform
+   * values (e.g. the server timestamp) are returned to the caller.
+   * @private
+   */
+  private async commitAndRead(
+    collectionName: string,
+    documentId: string,
+    fields: Record<string, any>,
+    transforms: FieldTransform[],
+    currentDocument?: { exists?: boolean; updateTime?: string }
+  ): Promise<Record<string, any> & { id: string }> {
+    await this.commit(
+      collectionName,
+      documentId,
+      fields,
+      transforms,
+      currentDocument
+    );
+    const saved = await this.get(collectionName, documentId);
+    if (!saved) {
+      throw new Error(
+        `Document ${collectionName}/${documentId} could not be read back after commit`
+      );
+    }
+    return saved;
+  }
+
+  /**
    * Get collection reference
    * @param path Collection path
    * @returns CollectionReference instance
@@ -183,6 +283,13 @@ export class FirestoreClient {
       console.log(`Adding document to collection: ${collectionName}`, data);
     }
 
+    // When the data contains field transforms (e.g. serverTimestamp), the
+    // create must go through the commit endpoint with a client-generated ID.
+    const { fields: plainData, transforms } = extractFieldTransforms(data);
+    if (transforms.length > 0) {
+      return this.addWithTransforms(collectionName, plainData, transforms);
+    }
+
     const url = this.pathUtil.getCollectionPath(collectionName);
     const firestoreData = convertToFirestoreDocument(data);
 
@@ -216,6 +323,45 @@ export class FirestoreClient {
 
     const result = (await response.json()) as FirestoreResponse;
     return convertFromFirestoreDocument(result);
+  }
+
+  /**
+   * Create a document that contains field transforms (e.g. serverTimestamp)
+   * with an auto-generated ID. Uses the commit endpoint with an
+   * `exists: false` precondition and retries on the (astronomically unlikely)
+   * ID collision, mirroring the uniqueness of server-generated IDs.
+   * @private
+   */
+  private async addWithTransforms(
+    collectionName: string,
+    plainData: Record<string, any>,
+    transforms: FieldTransform[]
+  ) {
+    const fields = convertToFirestoreDocument(plainData).fields;
+    const maxAttempts = 5;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const documentId = generateAutoId();
+      try {
+        return await this.commitAndRead(
+          collectionName,
+          documentId,
+          fields,
+          transforms,
+          { exists: false }
+        );
+      } catch (error) {
+        const collided = (error as { alreadyExists?: boolean })?.alreadyExists;
+        if (collided && attempt < maxAttempts - 1) {
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    throw new Error(
+      "Failed to generate a unique document ID after multiple attempts"
+    );
   }
 
   /**
@@ -360,6 +506,14 @@ export class FirestoreClient {
         // 通常のマージ
         data = { ...existingDoc, ...data };
       }
+    }
+
+    // Route writes that contain field transforms (e.g. serverTimestamp)
+    // through the commit endpoint; the merged document is sent as the update.
+    const { fields: plainData, transforms } = extractFieldTransforms(data);
+    if (transforms.length > 0) {
+      const fields = convertToFirestoreDocument(plainData).fields;
+      return this.commitAndRead(collectionName, documentId, fields, transforms);
     }
 
     const firestoreData = convertToFirestoreDocument(data);
@@ -623,6 +777,14 @@ export class FirestoreClient {
     // 操作前に設定をチェック
     this.checkConfig();
 
+    // Route writes that contain field transforms (e.g. serverTimestamp)
+    // through the commit endpoint (which creates the document if absent).
+    const { fields: plainData, transforms } = extractFieldTransforms(data);
+    if (transforms.length > 0) {
+      const fields = convertToFirestoreDocument(plainData).fields;
+      return this.commitAndRead(collectionName, documentId, fields, transforms);
+    }
+
     const url = `${getFirestoreBasePath(
       this.config.projectId,
       this.config.databaseId,
@@ -845,14 +1007,7 @@ export class CollectionReference {
    * @returns Random ID
    */
   private _generateId(): string {
-    // Generate 20-character random ID
-    const chars =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    let id = "";
-    for (let i = 0; i < 20; i++) {
-      id += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return id;
+    return generateAutoId();
   }
 }
 
