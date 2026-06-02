@@ -674,15 +674,18 @@ describe("Firebase Rest Firestore", () => {
   it("Should populate fields with the server timestamp via FieldValue.serverTimestamp()", async () => {
     const before = Date.now();
 
-    // serverTimestamp on add() (auto-generated ID via commit)
+    // serverTimestamp on add() (auto-generated ID via commit); a non-simple
+    // field name ("created-at") exercises field-path backtick escaping.
     const created = await client.add(testCollection, {
       name: "ts",
       createdAt: FieldValue.serverTimestamp(),
+      "created-at": FieldValue.serverTimestamp(),
     });
     createdIds.push({ collection: testCollection, id: created.id });
 
     expect(created.name).toBe("ts");
     expect(created.createdAt).toBeInstanceOf(Date);
+    expect(created["created-at"]).toBeInstanceOf(Date);
     const createdMs = (created.createdAt as Date).getTime();
     expect(createdMs).toBeGreaterThanOrEqual(before - 1000);
     expect(createdMs).toBeLessThanOrEqual(Date.now() + 1000);

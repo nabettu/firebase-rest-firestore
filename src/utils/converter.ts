@@ -136,15 +136,31 @@ function isPlainObject(value: any): boolean {
 }
 
 /**
+ * Escape a single field name for use in a Firestore field path. Simple names
+ * (`[A-Za-z_][A-Za-z0-9_]*`) are used as-is; anything else (dashes, dots,
+ * leading digits, spaces, ...) is wrapped in backticks with `\` and `` ` ``
+ * escaped, so a literal dot in a key is treated as part of the name rather than
+ * a path separator.
+ * See: https://firebase.google.com/docs/firestore/reference/rest/v1/projects.databases.documents#Document
+ */
+function escapeFieldPathSegment(segment: string): string {
+  if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(segment)) {
+    return segment;
+  }
+  return "`" + segment.replace(/\\/g, "\\\\").replace(/`/g, "\\`") + "`";
+}
+
+/**
  * Split write data into plain field values and Firestore field transforms.
  *
  * `FieldValue` sentinels (e.g. `serverTimestamp()`) are pulled out into
- * transforms keyed by their (dot-separated) field path; everything else is
- * left untouched in `fields`. Recursion only descends into plain objects, so
- * class instances (Date / references / geo points) are treated as leaves.
+ * transforms keyed by their (escaped, dot-separated) field path; everything
+ * else is left untouched in `fields`. Recursion only descends into plain
+ * objects, so class instances (Date / references / geo points) are treated as
+ * leaves.
  *
  * @param data Write data (JS values, may contain FieldValue sentinels)
- * @param prefix Field-path prefix used while recursing (internal)
+ * @param prefix Field-path prefix used while recursing (internal, pre-escaped)
  */
 export function extractFieldTransforms(
   data: Record<string, any>,
@@ -154,7 +170,8 @@ export function extractFieldTransforms(
   const transforms: FieldTransform[] = [];
 
   for (const [key, value] of Object.entries(data)) {
-    const fieldPath = prefix ? `${prefix}.${key}` : key;
+    const escapedKey = escapeFieldPathSegment(key);
+    const fieldPath = prefix ? `${prefix}.${escapedKey}` : escapedKey;
 
     if (value instanceof FieldValue) {
       if (value.methodName === "serverTimestamp") {

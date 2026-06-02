@@ -84,6 +84,24 @@ describe("extractFieldTransforms", () => {
     expect(fields).toEqual(data);
   });
 
+  it("backtick-escapes non-simple field names", () => {
+    const { transforms } = extractFieldTransforms({
+      "created-at": FieldValue.serverTimestamp(),
+    });
+    expect(transforms).toEqual([
+      { fieldPath: "`created-at`", setToServerValue: "REQUEST_TIME" },
+    ]);
+  });
+
+  it("escapes a literal dot in a field name (not treated as a path separator)", () => {
+    const { transforms } = extractFieldTransforms({
+      meta: { "x.y": FieldValue.serverTimestamp() },
+    });
+    expect(transforms).toEqual([
+      { fieldPath: "meta.`x.y`", setToServerValue: "REQUEST_TIME" },
+    ]);
+  });
+
   it("treats Date / DocumentReference / LiteralGeoPointValue as leaves (no recursion)", () => {
     const ref = makeClient().doc("a/b");
     const geo = new LiteralGeoPointValue({
