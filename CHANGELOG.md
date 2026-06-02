@@ -1,3 +1,10 @@
+# [1.6.0](https://github.com/nabettu/firebase-rest-firestore/compare/v1.5.0...v1.6.0) (2026-06-02)
+
+
+### Features
+
+* add FieldValue.serverTimestamp() support (closes [#5](https://github.com/nabettu/firebase-rest-firestore/issues/5)) ([#9](https://github.com/nabettu/firebase-rest-firestore/issues/9)) ([bd872f3](https://github.com/nabettu/firebase-rest-firestore/commit/bd872f3d1355193880fa39f065887ef004dbace6))
+
 # [1.5.0](https://github.com/nabettu/firebase-rest-firestore/compare/v1.4.0...v1.5.0) (2025-07-04)
 
 
