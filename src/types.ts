@@ -1,5 +1,3 @@
-import { URLPattern } from "urlpattern-polyfill"
-
 /**
  * Firestoreクライアントの設定インターフェース
  */
@@ -25,28 +23,22 @@ export class LiteralDocumentReference {
   }
 
   /**
-   * The pattern for globally unique Firestore Document Reference paths
+   * Globally unique Firestore document reference paths look like:
+   *   projects/{project_id}/databases/{database_id}/documents/{document_path}
+   * The database id (e.g. `(default)`) never contains a slash, while the
+   * document path may contain many. A single anchored regex parses this
+   * without pulling in a URLPattern polyfill.
    */
-  private static pattern = new URLPattern({ pathname: `/projects/:project_id/databases/:database_id/documents/:document_path*`});
+  private static readonly pattern =
+    /^projects\/([^/]+)\/databases\/([^/]+)\/documents\/(.+)$/;
 
-  /**
-   * Parse using URLPattern, which is a relatively new addition to the standard.
-   * See: https://urlpattern.spec.whatwg.org/#dom-urlpattern-protocol
-   * Added in Node.js v23: https://nodejs.org/api/url.html#class-urlpattern
-   * Baseline 2025 in browsers: https://developer.mozilla.org/en-US/docs/Web/API/URLPattern/protocol
-   * @returns 
-   */
   private parse() {
-    const result = LiteralDocumentReference.pattern.exec(`https://hostname/${this.referenceValue}`);
-    if (!result) throw new Error("Invalid document path. Path does not match pattern.");
+    const match = LiteralDocumentReference.pattern.exec(this.referenceValue);
+    if (!match) {
+      throw new Error("Invalid document path. Path does not match pattern.");
+    }
 
-    const project_id = result.pathname.groups["project_id"];
-    if (!project_id) throw new Error("Invalid document path. Path does not match pattern.");
-    const database_id = result.pathname.groups["database_id"];
-    if (!database_id) throw new Error("Invalid document path. Path does not match pattern.");
-    const document_path = result.pathname.groups["document_path"];
-    if (!document_path) throw new Error("Invalid document path. Path does not match pattern.");
-
+    const [, project_id, database_id, document_path] = match;
     return { project_id, database_id, document_path };
   }
 

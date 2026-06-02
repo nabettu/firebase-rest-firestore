@@ -14,12 +14,10 @@ import { getDocumentId } from "./path";
  * @returns Firestore形式の値
  */
 export function convertToFirestoreValue(value: any): FirestoreFieldValue {
-  // store in temporary variable to enable TypeScript to be more thorough
-  let unknown: unknown = value;
   if (value instanceof Date) {
     return { timestampValue: value.toISOString() };
   } else if (value instanceof DocumentReference) {
-    return { referenceValue: value["client"]["pathUtil"].getParentReference(value.path) };
+    return { referenceValue: value.referenceValue };
   } else if (value instanceof LiteralDocumentReference) {
     return { referenceValue: value.referenceValue }
   } else if (value instanceof LiteralGeoPointValue) {
