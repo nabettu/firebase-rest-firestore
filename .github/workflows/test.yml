@@ -1,0 +1,32 @@
+name: Test
+
+on:
+  pull_request:
+    branches:
+      - main
+
+# Least-privilege: this job only reads the repo.
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+
+      # --ignore-scripts blocks postinstall supply-chain attacks; the unit
+      # tests are pure and need no native build steps.
+      - name: Install
+        run: npm ci --ignore-scripts
+
+      # Dependency-free unit tests only. The emulator/credential-backed
+      # integration suite runs in the release workflow, not on PRs.
+      - name: Unit tests
+        run: npm run test:unit

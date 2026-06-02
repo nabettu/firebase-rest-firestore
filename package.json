@@ -23,6 +23,7 @@
     "emulator:start": "cd test/emulator && firebase emulators:start -P demo-test-project",
     "emulator:stop": "npx kill-port -y 4089 8089 9089",
     "test": "vitest",
+    "test:unit": "vitest run test/converter.test.ts",
     "test:emulator": "bash test/scripts/test-with-emulator.sh"
   },
   "keywords": [
