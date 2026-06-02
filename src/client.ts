@@ -121,6 +121,16 @@ export class FirestoreClient {
   }
 
   /**
+   * Build the fully-qualified Firestore reference value for a document path,
+   * e.g. `projects/{projectId}/databases/{databaseId}/documents/{path}`.
+   * Used to encode a DocumentReference without exposing internal path helpers.
+   * @param documentPath Document path (ex: "users/uid/posts/postId")
+   */
+  getReferenceValue(documentPath: string): string {
+    return this.pathUtil.getParentReference(documentPath);
+  }
+
+  /**
    * Get collection reference
    * @param path Collection path
    * @returns CollectionReference instance
@@ -872,6 +882,14 @@ export class DocumentReference {
    */
   get path(): string {
     return `${this.collectionPath}/${this.docId}`;
+  }
+
+  /**
+   * Fully-qualified Firestore reference value for this document, e.g.
+   * `projects/{projectId}/databases/{databaseId}/documents/{path}`.
+   */
+  get referenceValue(): string {
+    return this.client.getReferenceValue(this.path);
   }
 
   /**
