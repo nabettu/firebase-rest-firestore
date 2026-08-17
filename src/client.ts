@@ -793,13 +793,10 @@ export class FirestoreClient {
 
     const firestoreData = convertToFirestoreDocument(data);
 
-    const token = await this.getToken();
+    const headers = await this.prepareHeaders();
     const response = await fetch(url, {
       method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify(firestoreData),
     });
 
