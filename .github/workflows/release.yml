@@ -4,26 +4,30 @@ on:
   push:
     branches:
       - main
+  # 手動実行(OIDC 設定確認・リトライ用)
+  workflow_dispatch:
 
 # GitHub Actionsの権限設定
 permissions:
   contents: write
   issues: write
   pull-requests: write
+  # npm Trusted Publishing (OIDC) に必要
+  id-token: write
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v5
         with:
-          node-version: "20.x"
+          node-version: "24.x"
           registry-url: "https://registry.npmjs.org"
 
       - name: Gitの設定
@@ -31,8 +35,9 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
 
+      # --ignore-scripts で postinstall 系サプライチェーン攻撃をブロック
       - name: インストール
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: テスト実行
         env:
@@ -41,8 +46,8 @@ jobs:
           FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
         run: npm test
 
+      # npm への認証は Trusted Publishing (OIDC) を使用。NPM_TOKEN は不要
       - name: リリース実行
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npx semantic-release
