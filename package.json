@@ -48,7 +48,7 @@
     "concurrently": "^8.2.2",
     "dotenv": "^16.4.7",
     "semantic-release": "25.0.8",
-    "typescript": "^5.0.4",
+    "typescript": "^7.0.2",
     "vitest": "^3.0.9"
   },
   "engines": {
