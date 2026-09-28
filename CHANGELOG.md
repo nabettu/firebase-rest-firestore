@@ -1,3 +1,10 @@
+## [1.6.3](https://github.com/nabettu/firebase-rest-firestore/compare/v1.6.2...v1.6.3) (2026-09-28)
+
+
+### Bug Fixes
+
+* **build:** update tsconfig for TypeScript 7 compatibility ([802d040](https://github.com/nabettu/firebase-rest-firestore/commit/802d040288f397dea9c2ae36f8ea228b18019539))
+
 ## [1.6.2](https://github.com/nabettu/firebase-rest-firestore/compare/v1.6.1...v1.6.2) (2026-09-28)
 
 
