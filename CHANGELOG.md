@@ -1,3 +1,10 @@
+## [1.6.2](https://github.com/nabettu/firebase-rest-firestore/compare/v1.6.1...v1.6.2) (2026-09-28)
+
+
+### Bug Fixes
+
+* **deps:** upgrade jose to v6 and other dependencies ([a58e13f](https://github.com/nabettu/firebase-rest-firestore/commit/a58e13f8a30d8f0f278a4a8ccf1b626f4a127a96))
+
 # [1.6.0](https://github.com/nabettu/firebase-rest-firestore/compare/v1.5.0...v1.6.0) (2026-06-02)
 
 
