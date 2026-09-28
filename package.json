@@ -45,7 +45,7 @@
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
     "@types/node": "^26.1.1",
-    "concurrently": "^8.2.2",
+    "concurrently": "^10.0.5",
     "dotenv": "^17.4.2",
     "semantic-release": "25.0.8",
     "typescript": "^7.0.2",
