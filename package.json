@@ -61,5 +61,8 @@
   "bugs": {
     "url": "https://github.com/nabettu/firebase-rest-firestore/issues"
   },
-  "homepage": "https://github.com/nabettu/firebase-rest-firestore#readme"
+  "homepage": "https://github.com/nabettu/firebase-rest-firestore#readme",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  }
 }

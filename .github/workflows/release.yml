@@ -30,6 +30,9 @@ jobs:
           node-version: "24.x"
           registry-url: "https://registry.npmjs.org"
 
+      # 既知の悪性パッケージを install 前に止める（Takumi Guard。匿名モードでシークレット不要）
+      - uses: flatt-security/setup-takumi-guard-npm@14f07d0cbc739b42a1b7c70a04c2b84cd1318ddd # v1.4.0
+
       - name: Gitの設定
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
