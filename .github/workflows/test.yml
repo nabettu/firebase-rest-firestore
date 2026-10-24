@@ -21,6 +21,9 @@ jobs:
         with:
           node-version: "24.x"
 
+      # 既知の悪性パッケージを install 前に止める（Takumi Guard。匿名モードでシークレット不要）
+      - uses: flatt-security/setup-takumi-guard-npm@14f07d0cbc739b42a1b7c70a04c2b84cd1318ddd # v1.4.0
+
       # --ignore-scripts blocks postinstall supply-chain attacks; the unit
       # tests are pure and need no native build steps.
       - name: Install
