@@ -1,3 +1,10 @@
+## [1.6.4](https://github.com/nabettu/firebase-rest-firestore/compare/v1.6.3...v1.6.4) (2026-10-29)
+
+
+### Bug Fixes
+
+* **test:** test:emulator がテストの失敗を終了コードで返すようにする ([#36](https://github.com/nabettu/firebase-rest-firestore/issues/36)) ([67ec484](https://github.com/nabettu/firebase-rest-firestore/commit/67ec4841cde9ce8e9f5c952b0a7c7b29cdb37def))
+
 ## [1.6.3](https://github.com/nabettu/firebase-rest-firestore/compare/v1.6.2...v1.6.3) (2026-09-28)
 
 
