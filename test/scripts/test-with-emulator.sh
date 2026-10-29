@@ -59,11 +59,15 @@ else
   fi
 fi
 
-# Run the tests with environment variables
-cd "$PROJECT_ROOT" && vitest
+# Run the tests once (not in watch mode) with environment variables
+cd "$PROJECT_ROOT" && vitest run
+TEST_EXIT_CODE=$?
 
 # Cleanup - only kill if we started the emulator
 if [[ -n "$EMULATOR_PID" ]]; then
   echo "Shutting down emulator instance we started (PID: $EMULATOR_PID)"
   kill $EMULATOR_PID
 fi
+
+# Report the test result, not the result of the cleanup
+exit $TEST_EXIT_CODE
